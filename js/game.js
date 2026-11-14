@@ -113,7 +113,10 @@ function render() {
   app.dataset.screen = S.screen;
   if (fn.after) fn.after();
 }
-function go(screen) { stopAnim(); S.screen = screen; render(); window.scrollTo({ top: 0 }); }
+function go(screen) {
+  stopAnim(); S.screen = screen; render(); window.scrollTo({ top: 0 });
+  app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter');   // fade in only on a real screen change
+}
 function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
 function stopAnim() { if (S.anim) { cancelAnimationFrame(S.anim); S.anim = 0; } }
 
@@ -177,6 +180,8 @@ SCREENS.title = {
   html() {
     const has = hasProgress();
     return `<div class="title-screen">
+      <div class="hero" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+        ${planetSvg('ceruvia', 'wow', 'hero-planet')}<span class="orbit"><span class="sat">🛰️</span></span></div>
       <div class="eyebrow">A space mission design game</div>
       <h1 class="game-title">Last Signal <small>from Ceruvia</small></h1>
       <p class="lede">A faint radio signal is coming from an icy moon, and it is fading. Fly five missions to prove your team can reach it. Pick a science goal, build a spacecraft, fly it, and find out what is calling.</p>
@@ -207,7 +212,7 @@ SCREENS.map = {
     const cards = MISSIONS.map(m => {
       const open = isUnlockedMission(m), done = S.campaign.done[m.id];
       return `<button class="mission${open ? '' : ' locked'}" data-act="pickMission" data-arg="${m.id}"${open ? '' : ' aria-disabled="true"'}>
-        <span class="planet" aria-hidden="true">${open ? FACES.planet[m.planet] : '🔒'}</span>
+        <span class="planet" aria-hidden="true">${open ? planetSvg(m.planet, starsOn(m.id) ? 'happy' : 'meh') : '<span class="lock">🔒</span>'}</span>
         <span class="mtext"><span class="eyebrow">Mission ${m.num} · ${esc(m.target)}</span><b>${esc(m.name)}</b>
         <span class="small muted">${open ? esc(m.teaches) : 'Earn a star on mission ' + (m.num - 1) + ' to unlock.'}</span></span>
         <span class="mscore">${starsHtml(starsOn(m.id))}${done ? `<span class="small mono">${done.score} pts</span>` : ''}</span></button>`;
@@ -226,7 +231,8 @@ SCREENS.map = {
 SCREENS.briefing = {
   html() {
     const m = S.mission, lines = m.intro.slice(0, S.dlg + 1), more = S.dlg < m.intro.length - 1;
-    return `<div class="narrow"><div class="eyebrow">Mission ${m.num} briefing · ${esc(m.target)}</div><h2>${FACES.planet[m.planet]} ${esc(m.name)}</h2>
+    return `<div class="narrow"><div class="brief-head"><div><div class="eyebrow">Mission ${m.num} briefing · ${esc(m.target)}</div><h2>${esc(m.name)}</h2>
+      <p class="muted">${esc(m.teaches)}</p></div><div class="brief-planet">${planetSvg(m.planet, 'happy')}</div></div>
       <div class="dialog">${lines.map(([w, t]) => crewLine(w, t)).join('')}</div>
       ${more ? `<div class="row gap end"><button class="btn ghost small" data-act="dlgSkip">Skip</button><button class="btn primary" data-act="dlgNext">Next ▸</button></div>` : `
       <div class="card"><h3>⭐ Objectives</h3><ol class="objs">${m.objectives.map(o => `<li>${esc(o.text)}</li>`).join('')}</ol>
@@ -703,6 +709,7 @@ function finalize() {
   boardAdd({ n: S.myName || 'Crew', m: m.id, s: total, st: stars, d: S.difficulty, t: Date.now() });
   saveCampaign();
   go('report');
+  if (stars) { SFX.win(); FX.confetti(stars * 60); }
 }
 
 const OBJ_HINTS = {
@@ -739,7 +746,7 @@ SCREENS.report = {
     const reals = REAL_MISSIONS.filter(x => { try { return x.match({ m, d: derive(r.build), plan: r.plan }); } catch (e) { return false; } });
     const row = (k, v, note) => `<tr><td>${k}${note ? `<br><span class="small muted">${note}</span>` : ''}</td><td class="mono">${v}</td></tr>`;
     return `<div class="narrow"><div class="eyebrow">Step 5 · Mission report</div><h2>${FACES.planet[m.planet]} ${esc(m.name)}: ${res.stars ? 'mission complete' : 'mission over'}</h2>
-      <div class="card report-top">${S.patch ? patchImg('big') : ''}<div class="bigstars">${starsHtml(res.stars)}</div><div class="total mono">${res.total} pts</div>
+      <div class="card report-top"><div class="report-planet">${planetSvg(m.planet, res.stars >= 2 ? 'happy' : res.stars ? 'meh' : 'sad')}</div>${S.patch ? patchImg('big') : ''}<div class="bigstars">${starsHtml(res.stars)}</div><div class="total mono">${res.total} pts</div>
         ${res.best ? '<span class="pill">New best!</span>' : ''}</div>
       ${res.stars ? `<div class="dialog">${m.outro.map(([w, t]) => crewLine(w, t)).join('')}</div>` : `<div class="dialog">${crewLine('ollie', 'No stars this time, but every crash is data. Read the hints below and try again.')}</div>`}
       <div class="card"><h3>⭐ Objectives</h3><ul class="objlist">${res.objectives.map(o => `<li class="${o.ok ? 'good' : 'bad'}">${o.ok ? '★' : '☆'} ${esc(o.text)}${o.id === r.plan.goal ? ' <span class="pill">Prime goal</span>' : ''}
@@ -1013,4 +1020,5 @@ SCREENS.game = SCREENS_GAME;
 // ---------- start ----------
 loadCampaign();
 S.myName = store.get('ceruvia-myname') || '';
+FX.start();
 render();

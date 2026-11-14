@@ -2,10 +2,13 @@
 
 /* Base layout. The full sticker look, fonts and effects arrive in build step 7. */
 :root {
-  --bg: #0b1030; --bg2: #141a45; --card: #1b2257; --card2: #232b6b; --line: #3a4390;
-  --text: #eef0ff; --muted: #a9b0e0; --accent: #ffd166; --accent2: #5ee6c8;
+  --bg: #0b1030; --bg2: #141a4a; --card: #1d2563; --card2: #28327c; --line: #3d48a0; --ink: #070a22;
+  --text: #f2f3ff; --muted: #aab2e6; --accent: #ffd166; --accent2: #5ee6c8; --pink: #ff6b9d; --blue: #7cc4ff; --violet: #a78bfa;
   --good: #06d6a0; --warn: #ffb547; --bad: #ef476f;
-  --radius: 14px; --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, Menlo, Consolas, monospace;
+  --radius: 18px; --font: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Lilita One", "Baloo 2", system-ui, sans-serif; --round: "Baloo 2", "Nunito", system-ui, sans-serif;
+  --title: "Bungee", "Lilita One", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sticker: 0 5px 0 var(--ink); --sticker-sm: 0 3px 0 var(--ink);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 var(--font); }
@@ -271,6 +274,102 @@ table.compare td.best { color: var(--good); font-weight: 800; }
 .tour-tip p { margin: 0 0 .5rem; }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
 
+/* ---------- look and feel: cosmic sticker style ---------- */
+html { background: radial-gradient(1200px 700px at 85% -10%, rgba(167, 139, 250, .22), transparent 60%),
+  radial-gradient(900px 600px at -10% 110%, rgba(94, 230, 200, .14), transparent 60%), var(--bg); background-attachment: fixed; }
+body { background: transparent; }
+#bgSpace, #fxLayer { position: fixed; inset: 0; pointer-events: none; }
+#bgSpace { z-index: 0; } #fxLayer { z-index: 90; }
+.topbar, .app { position: relative; z-index: 1; }
+.topbar { position: sticky; z-index: 20; background: rgba(11, 16, 48, .85); border-bottom: 3px solid var(--ink); }
+h1, h2 { font-family: var(--display); font-weight: 400; letter-spacing: .01em; }
+h3, h4 { font-family: var(--round); font-weight: 800; }
+.eyebrow { font-family: var(--font); font-weight: 800; }
+.brand { font-family: var(--title); font-size: 1rem; letter-spacing: .02em; color: var(--accent); }
+.mono, .meter .mono, .total, .ghud b { font-family: var(--mono); }
+
+/* sticker cards */
+.card, .choice, .mission, .modal-box, .coach, .bubble, .meters, .gcanvas, .tour-tip {
+  border: 3px solid var(--ink); box-shadow: var(--sticker); border-radius: var(--radius); }
+.card { background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 85%, black)); }
+.choice { background: var(--card); transition: transform .12s, border-color .12s; }
+.choice:hover { transform: translateY(-2px); }
+.choice.sel { border-color: var(--accent); box-shadow: 0 5px 0 #b8892b; }
+.mission { background: var(--card); transition: transform .12s; }
+.mission:not(.locked):hover { transform: translateY(-3px) rotate(-.4deg); }
+.part { border: 3px solid var(--ink); border-left: 8px solid var(--cat); box-shadow: var(--sticker-sm); transition: transform .1s; }
+.part:hover { transform: translateX(3px); }
+.mount.full { border-width: 3px; box-shadow: var(--sticker-sm); }
+.pill { border: 2px solid var(--ink); }
+.tab { border: 3px solid var(--ink); border-bottom: 0; }
+.tab.sel { background: var(--accent); color: #1b1f3b; border-color: var(--ink); }
+.qbtn, .iconbtn { border: 2px solid var(--ink); box-shadow: 0 2px 0 var(--ink); }
+
+/* squishy buttons */
+.btn { font-family: var(--round); font-weight: 800; border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 4px 0 var(--ink);
+  transition: transform .08s, box-shadow .08s, filter .12s; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 5px 0 var(--ink); }
+.btn:active:not(:disabled) { transform: translateY(3px) scale(.97); box-shadow: 0 1px 0 var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--ink); color: #1b1f3b; }
+.btn.ghost { background: var(--card2); }
+.btn.big { font-size: 1.15rem; padding: .7em 1.5em; }
+.tbtn { border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); font-family: var(--round); }
+.tbtn.on { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.iconbtn:active, .qbtn:active { transform: translateY(2px); box-shadow: none; }
+
+/* title hero */
+.game-title { font-family: var(--title); font-weight: 400; color: var(--accent); text-shadow: 0 5px 0 var(--ink), 0 0 30px rgba(255, 209, 102, .35); line-height: 1.05; }
+.game-title small { font-family: var(--display); color: var(--accent2); text-shadow: 0 3px 0 var(--ink); letter-spacing: .04em; margin-top: .2em; }
+.hero { position: relative; width: 190px; height: 190px; margin: 0 auto 1rem; }
+.hero-planet { position: absolute; inset: 25px; width: 140px; height: 140px; animation: bob 4s ease-in-out infinite; }
+.hero .ring { position: absolute; inset: 50%; border: 2px solid rgba(94, 230, 200, .6); border-radius: 50%; animation: ping 3s ease-out infinite; }
+.hero .r2 { animation-delay: 1s; } .hero .r3 { animation-delay: 2s; }
+.hero .orbit { position: absolute; inset: 0; animation: spin 9s linear infinite; }
+.hero .sat { position: absolute; top: -4px; left: 50%; font-size: 1.6rem; transform: translateX(-50%) rotate(90deg); }
+@keyframes bob { 50% { transform: translateY(-6px) rotate(2deg); } }
+@keyframes ping { 0% { inset: 45%; opacity: 1; } 100% { inset: -20%; opacity: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* planets with faces */
+.planet-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mission .planet { width: 64px; height: 64px; font-size: 2rem; display: grid; place-items: center; }
+.mission:not(.locked):hover .planet-svg { animation: wiggle .5s ease; }
+@keyframes wiggle { 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
+.brief-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brief-planet { width: 96px; height: 96px; flex: none; animation: bob 4s ease-in-out infinite; }
+.report-planet { width: 84px; height: 84px; }
+.face { overflow: hidden; background: color-mix(in srgb, var(--crew) 30%, #1b2257); border: 3px solid var(--ink); box-shadow: 0 2px 0 var(--ink); }
+.face svg { display: block; }
+.coach .face, .tour-tip .face, .line .face { width: 3.1rem; height: 3.1rem; flex: none; }
+.bubble { background: var(--card); position: relative; }
+.bubble::before { content: ""; position: absolute; left: -10px; top: 14px; border: 8px solid transparent; border-right-color: var(--ink); }
+
+/* googly-eyed spacecraft */
+.body { position: relative; border-width: 3px; border-color: var(--ink); box-shadow: 0 6px 0 var(--ink); }
+.googly { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; pointer-events: none; z-index: 2; }
+.googly i { width: 22px; height: 22px; background: #fff; border: 3px solid var(--ink); border-radius: 50%; position: relative; display: block; }
+.googly b { position: absolute; width: 9px; height: 9px; background: var(--ink); border-radius: 50%; left: 4px; top: 5px; animation: googly 3.5s ease-in-out infinite; }
+.googly i:last-child b { animation-delay: .15s; }
+@keyframes googly { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(4px, 3px); } 60% { transform: translate(1px, 5px); } 80% { transform: translate(3px, 0); } }
+.ship-row.top { margin-bottom: 10px; }
+
+/* small touches */
+.meter .bar, .battery .bar { border: 2px solid var(--ink); }
+.meter .bar i { border-radius: 99px; }
+.verdict { border: 3px solid var(--ink); box-shadow: var(--sticker-sm); }
+.toast { border: 3px solid var(--ink); background: var(--accent); color: #1b1f3b; font-weight: 800; box-shadow: var(--sticker-sm); }
+.find { border: 3px solid var(--ink); border-left: 8px solid var(--accent2); box-shadow: var(--sticker-sm); }
+.goalchip { border: 3px solid var(--ink); }
+.sitedot { border-color: var(--ink); box-shadow: 0 0 0 2px #fff; }
+.planetmap { border: 3px solid var(--ink); box-shadow: 0 6px 0 var(--ink), inset -20px -20px 40px rgba(0, 0, 0, .35); }
+.drawer { border-left: 3px solid var(--ink); }
+.stars { text-shadow: 0 2px 0 var(--ink); }
+.bigstars .stars { font-size: 2.6rem; }
+@keyframes popIn { 0% { transform: scale(.85); opacity: 0; } 70% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
+.modal-box, .verdict, .find, .toast { animation: popIn .25s ease-out; }
+.app.enter > * { animation: fadeUp .25s ease-out; }
+@keyframes fadeUp { from { transform: translateY(6px); opacity: 0; } }
+
 /* phones */
 @media (max-width: 720px) {
   .hangar-grid, .explore-grid, .paint-grid { grid-template-columns: minmax(0, 1fr); }
@@ -280,6 +379,8 @@ table.compare td.best { color: var(--good); font-weight: 800; }
   .brand span { display: none; }
   .findlist li { grid-template-columns: 6rem 1fr; }
   .findlist li span:last-child { grid-column: 2; }
-  h2 { font-size: 1.35rem; }
+  h2 { font-size: 1.45rem; }
+  .brief-planet { width: 72px; height: 72px; }
+  .hero { width: 150px; height: 150px; } .hero-planet { inset: 20px; width: 110px; height: 110px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

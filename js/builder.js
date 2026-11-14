@@ -281,6 +281,7 @@ function shipHtml() {
       <div class="ship-row mid">
         <div class="wings left">${sides.filter((_, i) => i % 2 === 0).join('')}</div>
         <div class="body">
+          <div class="googly" aria-hidden="true"><i><b></b></i><i><b></b></i></div>
           <div class="body-head">${patchImg()}<span class="nameplate">${esc(S.shipName || 'Unnamed')}</span></div>
           <div class="zone"><span class="zl">Instrument bays</span><div class="mgrid">${s.bay.map((_, i) => mountHtml('bay', i, 'bay')).join('')}</div></div>
           <div class="zone"><span class="zl">Inside the bus</span><div class="mgrid">${s.core.map((_, i) => mountHtml('core', i, 'core')).join('')}</div></div>
