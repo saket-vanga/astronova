@@ -485,10 +485,9 @@ function drawRing(ctx) {
   ctx.lineWidth = 5; ctx.strokeStyle = PATCH_BG;
   ctx.beginPath(); ctx.arc(PATCH_R, PATCH_R, PATCH_R - 3, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath(); ctx.arc(PATCH_R, PATCH_R, PATCH_IN, 0, Math.PI * 2); ctx.stroke();
-  const text = (S.shipName || ('Mission ' + (S.mission ? S.mission.num : 1))).toUpperCase();
-  const label = S.mission ? ' · ' + S.mission.name.toUpperCase() : '';
+  const text = (S.shipName || 'Last Signal').toUpperCase();
   writeArc(ctx, text, -Math.PI / 2, (PATCH_R + PATCH_IN) / 2, false);
-  if (label) writeArc(ctx, label.replace(' · ', ''), Math.PI / 2, (PATCH_R + PATCH_IN) / 2, true);
+  writeArc(ctx, '★ ★ ★', Math.PI / 2, (PATCH_R + PATCH_IN) / 2, true);
 }
 // Letters around a circle, centred on an angle; the bottom text reads left to right too.
 function writeArc(ctx, text, centre, radius, bottom) {

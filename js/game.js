@@ -386,9 +386,11 @@ function findingFrac(r) {
   return f * r.dataLoss;
 }
 
-function doPass(siteId) {
+// One science pass over a site. scanMult comes from the scan minigame (×0.85 to ×1.3; auto scan ×1).
+function doPass(siteId, scanMult, hits) {
   const r = S.run, m = S.mission, site = m.sites.find(s => s.id === siteId), orbit = m.orbits[r.plan.orbit];
   if (!site || r.passesLeft <= 0) return;
+  scanMult = scanMult || 1;
   r.passesLeft--;
   const got = [], missed = [], pFind = 0.55 + 0.4 * r.c.duty;
   for (const inst of r.d.instruments) {
@@ -396,7 +398,7 @@ function doPass(siteId) {
     if (!f || r.finds.some(x => x.id === f.id)) continue;
     if (!canSee(inst, site, orbit)) { missed.push({ inst, why: Math.abs(site.lat) > orbit.maxLat ? 'out of view from this orbit' : 'needs a low orbit' }); continue; }
     if (Math.random() < pFind) {
-      const rec = Object.assign({}, f, { site: site.id, inst, mult: PARTS[inst].detail && !orbit.detail ? 0.5 : 1 });
+      const rec = Object.assign({}, f, { site: site.id, inst, mult: (PARTS[inst].detail && !orbit.detail ? 0.5 : 1) * scanMult });
       r.finds.push(rec); got.push(rec);
     } else missed.push({ inst, why: 'saw nothing new this time' });
   }
@@ -409,7 +411,8 @@ function doPass(siteId) {
     } else missed.push({ inst: 'sampler', why: 'needs a low orbit over the plumes' });
   }
   S.lastPass = { site: site.id, got: got.map(f => f.id), missed };
-  log(`Science pass over ${site.name}: ${got.length ? got.map(f => f.title).join(', ') : 'nothing new'}.`, got.length ? 'good' : 'info');
+  const scanNote = hits >= 0 && hits != null ? ` (scan ${hits}/3 on target, ×${scanMult})` : '';
+  log(`Science pass over ${site.name}${scanNote}: ${got.length ? got.map(f => f.title).join(', ') : 'nothing new'}.`, got.length ? 'good' : 'info');
   rerender();
   if (got.length) popFinds(got);
 }
@@ -465,18 +468,74 @@ STEPS.doTag = function (siteId) {
 
 function finishExplore() {
   const m = S.mission, r = S.run;
-  if (m.crisis && !r.crisisDone) { go('crisis'); return; }
+  if (m.crisis && !r.crisisDone) { if (!r.crisis) initCrisis(); go('crisis'); return; }
   if (m.needReturn) { runStep('doReentry'); return; }
   finalize();
 }
 
-// Stand-in until the turn-based power emergency arrives in build step 5.
-function resolveCrisisAuto() {
-  const r = S.run, d = r.d, cr = S.mission.crisis;
-  r.crisisDone = true;
-  r.crisisClean = d.rtg > 0 || d.batteryWh >= 2000 || d.fuelcell > 0;
-  if (r.crisisClean) log(`${cr.name}: your backup power kept the spacecraft running. No data lost.`, 'good');
-  else { r.sciMult *= 0.8; r.dataLoss *= 0.8; log(`${cr.name}: the battery ran flat. Instruments froze and unsent data was lost.`, 'bad'); }
+// ---------- the power emergency (turn-based) ----------
+// Each turn is 3 hours. Generation drops, so the player switches loads off to keep the battery alive
+// and keeps the transmitter and pointing on long enough to send the unsent data home.
+const CRISIS_H = 3;
+const CRISIS_LOADS = [
+  { k: 'heater', name: 'Heaters', icon: '🔥', why: 'Keep the battery and instruments warm. Off for 3 turns in a row and the cold battery loses a quarter of its capacity.' },
+  { k: 'adcs', name: 'Pointing', icon: '🎯', why: 'Points the antenna at Earth. Without it, nothing can be sent.' },
+  { k: 'recorder', name: 'Recorder', icon: '💾', why: 'Holds the data that has not been sent yet. Switch it off and that data is erased.' },
+  { k: 'tx', name: 'Transmitter', icon: '📡', why: 'Sends one packet of waiting data home each turn, if pointing is on.' },
+  { k: 'inst', name: 'Instruments', icon: '🔬', why: 'Keep watching the storm. Survive with them on for bonus science.' }
+];
+function initCrisis() {
+  const r = S.run, c = r.c, cap = Math.max(50, r.d.batteryWh);
+  r.crisis = { turn: 1, battery: cap, cap, fc: 0, fcUsed: false, cold: 0, coldHit: false,
+    on: { heater: true, adcs: true, recorder: true, tx: true, inst: true }, instAll: true,
+    packets: 2 + Math.round((1 - c.dataRatio) * 4) + Math.min(2, Math.floor(r.finds.length / 3)), sent: 0, lost: 0, dead: false, done: false,
+    log: [`${S.mission.crisis.name}! Power generation has dropped. Decide what to switch off.`] };
+}
+function crisisPower() {
+  const r = S.run, c = r.c, d = r.d, cr = S.mission.crisis, x = r.crisis, orbit = S.mission.orbits[r.plan.orbit];
+  const gen = solarAt(d.solarKw, S.mission.au) * (1 - cr.solarCut) * (1 - orbit.eclipse) + rtgAt(d.rtg, c.cruise) * (1 - cr.rtgCut);
+  const parts = { computer: d.computer ? d.computer.power : 0, heater: c.heater, adcs: d.adcs ? d.adcs.power : 0, recorder: d.recorder ? d.recorder.power : 0,
+    tx: d.antenna ? d.antenna.power : 0, inst: c.instP };
+  let load = parts.computer;
+  for (const L of CRISIS_LOADS) if (x.on[L.k]) load += parts[L.k];
+  return { gen, load, parts, net: gen - load };
+}
+function crisisNextTurn() {
+  const r = S.run, x = r.crisis, cr = S.mission.crisis;
+  if (!x || x.done) return;
+  const p = crisisPower(), note = [];
+  let need = -p.net * CRISIS_H;
+  if (need > 0 && x.fc > 0) { const use = Math.min(x.fc, need); x.fc -= use; need -= use; note.push(`Fuel cell gave ${Math.round(use)} Wh.`); }
+  x.battery = clamp(x.battery - need, 0, x.cap);
+  if (!x.on.heater) {
+    x.cold++;
+    if (x.cold >= 3 && !x.coldHit) { x.coldHit = true; x.cap *= 0.75; x.battery = Math.min(x.battery, x.cap); note.push('The cold battery lost a quarter of its capacity!'); }
+  } else x.cold = 0;
+  if (!x.on.inst) x.instAll = false;
+  const unsent = x.packets - x.sent - x.lost;
+  if (!x.on.recorder && unsent > 0) { x.lost += unsent; note.push(`Recorder off: ${plural(unsent, 'packet')} of unsent data erased!`); }
+  else if (x.on.tx && x.on.adcs && unsent > 0) { x.sent++; note.push('Sent a packet of data home. 📡'); }
+  else if (x.on.tx && !x.on.adcs && unsent > 0) note.push('The transmitter is on, but without pointing the antenna misses Earth.');
+  if (x.battery <= 0) {
+    x.dead = true; const left = x.packets - x.sent - x.lost; x.lost += left;
+    note.push('The battery is flat! The computer browned out' + (left ? ` and ${plural(left, 'packet')} of data were lost.` : '.'));
+  }
+  x.log.unshift(`Turn ${x.turn}: ${Math.round(p.net)} W net. ${note.join(' ')}`);
+  x.turn++;
+  if (x.dead || x.turn > cr.turns) endCrisis();
+  rerender();
+}
+function endCrisis() {
+  const r = S.run, x = r.crisis, cr = S.mission.crisis;
+  x.done = true; r.crisisDone = true;
+  r.crisisClean = !x.dead && x.lost === 0;
+  if (x.dead) r.sciMult *= 0.8;
+  if (x.lost) r.dataLoss *= 1 - 0.5 * x.lost / x.packets;
+  if (!x.dead && x.instAll) r.bonusSci += 15;
+  r.scores.crisis = x.dead ? 0 : Math.round((r.crisisClean ? 60 : 30) + 40 * x.battery / x.cap);
+  log(`${cr.name}: ${x.dead ? 'the battery ran flat and the instruments froze' : 'the spacecraft survived'}. ${x.sent} of ${x.packets} data packets sent${x.lost ? ', ' + x.lost + ' lost' : ''}.${!x.dead && x.instAll ? ' The instruments recorded the whole storm (+15 science).' : ''}`,
+    r.crisisClean ? 'good' : 'bad');
+  if (r.crisisClean) SFX.win(); else SFX.lose();
 }
 
 STEPS.doReentry = function () {
@@ -579,12 +638,29 @@ function planetColor(p) { return { earth: '#3d7bd9', moon: '#9aa0b4', asteroid: 
 
 SCREENS.crisis = {
   html() {
-    const cr = S.mission.crisis, d = S.run.d;
-    const backup = [d.rtg ? plural(d.rtg, 'RTG') : '', d.batteryWh >= 2000 ? 'a big battery' : '', d.fuelcell ? 'a fuel cell' : ''].filter(Boolean);
-    return `<div class="narrow"><div class="card crisis"><div class="eyebrow">Emergency</div><h2>⚡ ${esc(cr.name)}!</h2><p>${esc(cr.text)}</p>
-      <p>${backup.length ? `You have ${backup.join(' and ')} to keep the lights on.` : 'You have no backup power. The battery will have to do.'}</p>
-      <p class="small muted">The full power emergency, where you switch systems off to survive, arrives in a later build step.</p>
-      <div class="row end"><button class="btn primary" data-act="crisisDone"${canAct('pwr') ? '' : ' disabled'}>Ride it out →</button></div></div></div>`;
+    const r = S.run, x = r.crisis, cr = S.mission.crisis, p = crisisPower(), pw = canAct('pwr');
+    const hrs = Math.max(0, x.battery) / Math.max(1, -p.net);
+    const toggles = CRISIS_LOADS.map(L => `<button class="load${x.on[L.k] ? ' on' : ''}" data-act="crisisToggle" data-arg="${L.k}"${pw && !x.done ? '' : ' disabled'} aria-pressed="${x.on[L.k]}">
+        <b>${L.icon} ${L.name}</b><span class="mono small">${Math.round(p.parts[L.k])} W · ${x.on[L.k] ? 'ON' : 'off'}</span><span class="small muted">${L.why}</span></button>`).join('');
+    const unsent = x.packets - x.sent - x.lost;
+    const fc = r.d.fuelcell ? `<button class="btn ghost" data-act="crisisFuelCell"${pw && !x.fcUsed && !x.done ? '' : ' disabled'}>🧪 ${x.fcUsed ? `Fuel cell running (${Math.round(x.fc)} Wh left)` : `Start the fuel cell (+${r.d.fuelcell} Wh)`}</button>` : '';
+    return `<div class="narrow"><div class="card crisis"><div class="eyebrow">Emergency · ${esc(ROLES.pwr.name)}</div><h2>⚡ ${esc(cr.name)}!</h2><p>${esc(cr.text)}</p>
+      <div class="crisis-stats">
+        <div><span class="small muted">Turn</span><b class="mono">${Math.min(x.turn, cr.turns)} / ${cr.turns}</b></div>
+        <div><span class="small muted">Making</span><b class="mono">${fmtW(p.gen)}</b></div>
+        <div><span class="small muted">Using</span><b class="mono">${fmtW(p.load)}</b></div>
+        <div><span class="small muted">Data waiting</span><b class="mono">${unsent} 📦 · ${x.sent} sent${x.lost ? ' · ' + x.lost + ' lost' : ''}</b></div></div>
+      <div class="battery"><div class="row between"><b>🔋 Battery</b><span class="mono small">${Math.round(x.battery)} / ${Math.round(x.cap)} Wh${p.net < 0 && !x.done ? ` · lasts about ${hrs.toFixed(0)} h (${Math.floor(hrs / CRISIS_H)} turns)` : ''}</span></div>
+        <div class="bar"><i style="width:${Math.round(x.battery / Math.max(1, r.d.batteryWh) * 100)}%" class="${x.battery / x.cap < 0.25 ? 'low' : ''}"></i></div></div>
+      ${x.done ? `<div class="verdict ${r.crisisClean ? 'good' : 'bad'}"><h3>${x.dead ? 'Brownout' : r.crisisClean ? 'You rode out the storm!' : 'Survived, but data was lost'}</h3>
+          <p>${x.sent} of ${x.packets} data packets reached Earth.${!x.dead && x.instAll ? ' The instruments recorded the whole storm.' : ''}</p></div>
+        <div class="row end"><button class="btn primary" data-act="crisisDone"${pw ? '' : ' disabled'}>Continue →</button></div>`
+      : `<p class="small"><b>Computer</b> stays on (${Math.round(p.parts.computer)} W). Tap a system to switch it, then end the turn.</p>
+        <div class="loads">${toggles}</div>
+        <div class="row gap wrap end">${fc}<button class="btn primary" data-act="crisisTurn"${pw ? '' : ' disabled'}>End turn (3 hours) ▶</button></div>
+        ${pw ? '' : `<p class="small muted">${esc(waitFor('pwr'))} is handling the emergency.</p>`}`}
+      <h3>📜 Log</h3>${logHtml(x.log.slice(0, 6).map(t => ({ text: t, kind: /flat|erased|lost/.test(t) ? 'bad' : /Sent/.test(t) ? 'good' : 'info' })))}
+    </div></div>`;
   }
 };
 
@@ -855,12 +931,18 @@ const ACT = {
     startRun();
   },
   gameGo() { gameBegin(); },
-  gameRetry() { if (S.retriesLeft <= 0 || !S.game) return; S.retriesLeft--; S.game.phase = 'intro'; S.game.result = null; S.game.state = null; rerender(); },
+  gameRetry() { if (S.retriesLeft <= 0 || !S.game) return; S.retriesLeft--; S.game.result = null; S.game.state = null; gameBegin(); },
+  scanHit() { scanPress(); },
+  scanAuto() { scanFinish(1, -1); },
   gameDone() { const g = S.game; if (!g || !g.result) return; S.game = null; g.onDone(g.result); },
 
   // exploring
   selSite(id) { S.selSite = id; rerender(); },
-  pass() { if (!canAct('sci')) return; doPass(S.selSite); },
+  pass() {
+    if (!canAct('sci') || !S.run || S.run.passesLeft <= 0) return;
+    const site = S.selSite, d = S.run.d;   // capture before the async scan
+    runScan({ tol: DIFF[S.difficulty].tol, precise: !!(d.adcs && d.adcs.spare) }, (mult, hits) => doPass(site, mult, hits));
+  },
   land() { if (!canAct('sci')) return; runStep('doLanding', S.selSite); },
   tag() { if (!canAct('sci')) return; runStep('doTag', S.selSite); },
   finishExplore() {
@@ -869,7 +951,10 @@ const ACT = {
     else finishExplore();
   },
   confirmFinish() { closeModal(); finishExplore(); },
-  crisisDone() { if (!canAct('pwr')) return; resolveCrisisAuto(); finishExplore(); },
+  crisisToggle(k) { const x = S.run && S.run.crisis; if (!canAct('pwr') || !x || x.done || !(k in x.on)) return; x.on[k] = !x.on[k]; rerender(); },
+  crisisFuelCell() { const x = S.run.crisis; if (!canAct('pwr') || x.fcUsed || !S.run.d.fuelcell) return; x.fcUsed = true; x.fc = S.run.d.fuelcell; x.log.unshift('Fuel cell started.'); rerender(); },
+  crisisTurn() { if (!canAct('pwr')) return; crisisNextTurn(); },
+  crisisDone() { if (!canAct('pwr') || !S.run.crisisDone) return; finishExplore(); },
 
   // report
   retryMission() { prepareMission(S.mission); go('hangar'); },

@@ -230,6 +230,32 @@ table.compare th { text-align: left; padding: .35rem .3rem; border-bottom: 1px s
 table.compare td { font-size: .9rem; }
 table.compare td.best { color: var(--good); font-weight: 800; }
 
+/* ---------- minigames ---------- */
+.game-wrap { max-width: 900px; margin: 0 auto; }
+.ghud { min-height: 1.6em; font-size: .9rem; color: var(--muted); margin: .2rem 0 .4rem; }
+.ghud b { color: var(--text); font-family: var(--mono); }
+.gcanvas { width: 100%; border-radius: var(--radius); overflow: hidden; border: 2px solid var(--line); background: #060a24; }
+.gcanvas canvas { display: block; width: 100%; touch-action: none; }
+.touch { display: flex; gap: .5rem; margin-top: .6rem; justify-content: center; user-select: none; -webkit-user-select: none; }
+.tbtn { flex: 1; max-width: 140px; min-height: 3.4rem; border-radius: 14px; border: 2px solid var(--line); background: var(--card2); font-weight: 800; font-size: 1rem;
+  touch-action: none; -webkit-touch-callout: none; cursor: pointer; }
+.tbtn.wide { max-width: 260px; }
+.tbtn.on { background: var(--accent); color: #1b1f3b; border-color: var(--accent); transform: scale(.96); }
+.keys { margin: .6rem 0; }
+.effects { text-align: left; background: var(--bg2); border-radius: 12px; padding: .5rem .8rem; margin: .7rem 0; font-size: .9rem; }
+.effects ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+.lesson { background: rgba(255, 209, 102, .1); border-radius: 10px; padding: .4rem .6rem; }
+.scanbox canvas { width: 100%; height: auto; border-radius: 10px; display: block; margin: .4rem 0; }
+/* power emergency */
+.crisis-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; margin: .6rem 0; }
+.crisis-stats div { background: var(--bg2); border-radius: 10px; padding: .4rem .6rem; display: flex; flex-direction: column; }
+.battery .bar { height: 14px; border-radius: 99px; background: var(--bg2); overflow: hidden; margin: .3rem 0 .6rem; }
+.battery .bar i { display: block; height: 100%; background: var(--good); transition: width .3s; }
+.battery .bar i.low { background: var(--bad); }
+.loads { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .5rem; margin: .5rem 0; }
+.load { display: flex; flex-direction: column; gap: .15rem; text-align: left; padding: .55rem .7rem; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); cursor: pointer; opacity: .75; }
+.load.on { border-color: var(--good); background: rgba(6, 214, 160, .1); opacity: 1; }
+
 /* phones */
 @media (max-width: 720px) {
   .hangar-grid, .explore-grid, .paint-grid { grid-template-columns: minmax(0, 1fr); }
