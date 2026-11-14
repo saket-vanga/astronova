@@ -873,6 +873,10 @@ const ACT = {
   patchUndo() { patchUndo(); },
   patchClear() { patchClear(); },
   tradeSave() { tradeSave(); },
+  coachFix(arg) { coachFix(arg); },
+  startTour() { startTour(); },
+  tourNext() { tourNext(); },
+  tourSkip() { endTour(); },
   tradeLoad(i) { tradeLoad(i); },
   tradeDel(i) { tradeDel(i); },
   autoBuild() {
@@ -999,7 +1003,8 @@ document.addEventListener('change', e => { const k = e.target.dataset && e.targe
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   const d = $('#drawer'), m = $('#modal');
-  if (!d.hidden) ACT.closeHandbook();
+  if (tourState) endTour();
+  else if (!d.hidden) ACT.closeHandbook();
   else if (!m.hidden && !m.dataset.locked) closeModal();
 });
 
