@@ -129,7 +129,7 @@ function renderTopbar() {
   tb.innerHTML = `<button class="brand" ${flying ? 'disabled' : 'data-act="home"'} aria-label="Title screen">📡 <span>Last Signal</span></button>
     ${showMission ? `<span class="tb-mission small">${FACES.planet[S.mission.planet]} M${S.mission.num} · ${esc(S.mission.name)}</span>` : ''}
     <span class="grow"></span>
-    ${!flying && showMission ? '<button class="btn small ghost" data-act="toMap">Mission control</button>' : ''}
+    ${!flying && showMission ? '<button class="btn small ghost" data-act="toMap" aria-label="Mission control"><span class="lbl">Mission control</span><span class="ico" aria-hidden="true">🗺️</span></button>' : ''}
     <button class="iconbtn" data-act="openHandbook" aria-label="Open the handbook" title="Handbook">📖</button>
     <button class="iconbtn" data-act="toggleMute" aria-label="${SFX.muted ? 'Turn sound on' : 'Mute sound'}" title="Sound">${SFX.muted ? '🔇' : '🔊'}</button>`;
 }
@@ -635,7 +635,7 @@ SCREENS.explore = {
             <button class="btn primary" data-act="pass"${r.passesLeft > 0 && sciRole ? '' : ' disabled'}>🔭 Science pass here</button>
             ${canLand ? `<button class="btn ghost" data-act="land"${sciRole ? '' : ' disabled'}>🛬 Land here</button>` : ''}
             ${canTag ? `<button class="btn ghost" data-act="tag"${sciRole ? '' : ' disabled'}>🦾 Touch-and-go here</button>` : ''}
-          </div>${sciRole ? '' : `<p class="small muted">${esc(waitFor('sci'))} runs the science.</p>`}</div></div>
+          </div>${sciRole ? '' : `<p class="small muted">${esc(holderName('sci'))} runs the science.</p>`}</div></div>
       <div class="card"><h3>📜 Mission log</h3>${logHtml(r.log.slice(-6))}</div>
       <div class="row end"><button class="btn ${r.passesLeft ? 'ghost' : 'primary'}" data-act="finishExplore"${canAct('lead') ? '' : ' disabled'}>Finish science →</button></div>`;
   }
@@ -664,7 +664,7 @@ SCREENS.crisis = {
       : `<p class="small"><b>Computer</b> stays on (${Math.round(p.parts.computer)} W). Tap a system to switch it, then end the turn.</p>
         <div class="loads">${toggles}</div>
         <div class="row gap wrap end">${fc}<button class="btn primary" data-act="crisisTurn"${pw ? '' : ' disabled'}>End turn (3 hours) ▶</button></div>
-        ${pw ? '' : `<p class="small muted">${esc(waitFor('pwr'))} is handling the emergency.</p>`}`}
+        ${pw ? '' : `<p class="small muted">${esc(holderName('pwr'))} is handling the emergency.</p>`}`}
       <h3>📜 Log</h3>${logHtml(x.log.slice(0, 6).map(t => ({ text: t, kind: /flat|erased|lost/.test(t) ? 'bad' : /Sent/.test(t) ? 'good' : 'info' })))}
     </div></div>`;
   }
@@ -856,7 +856,7 @@ const ACT = {
   dlgSkip() { S.dlg = S.mission.intro.length - 1; rerender(); },
   toGoal() { go('goal'); },
   setGoal(id) {
-    if (!canAct('lead')) { toast(waitFor('lead') + '.'); return; }
+    if (!canAct('lead')) { toast(waitFor('lead') + ' to choose the goal.'); return; }
     S.plan.goal = id; syncFuel(); saveBuild(); go('hangar');
   },
   toHangar() { go('hangar'); },

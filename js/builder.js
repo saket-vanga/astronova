@@ -663,10 +663,12 @@ function biggerBus() {
   const order = Object.keys(BUSES), i = order.indexOf(S.build.bus);
   return order.slice(i + 1).find(k => busUnlocked(k, S.mission, S.difficulty)) || null;
 }
-function canShow(id) { return partVisible(id) && canAct(CAT_ROLE[PARTS[id].cat]); }
+function canShow(id) { return partVisible(id); }
 // A fix that fits a part, or first grows the bus if there is no room.
 function partFix(id, verb) {
-  const p = PARTS[id];
+  if (!id || !PARTS[id]) return null;
+  const p = PARTS[id], role = CAT_ROLE[p.cat];
+  if (!canAct(role)) return { arg: '', label: holderName(role) + ' can fit the ' + p.name.toLowerCase(), locked: true };
   if (!hasFree(p.slot)) { const b = biggerBus(); return b ? { arg: 'bus:' + b, label: 'Use the ' + BUSES[b].name.toLowerCase() } : null; }
   return { arg: 'part:' + id, label: (verb || 'Fit the') + ' ' + p.name.toLowerCase() };
 }
@@ -771,7 +773,8 @@ function coachHtml(c) {
   const say = next ? esc(next.text) : (review(S.build, S.plan, S.mission, c).some(i => i.level === 'warn')
     ? 'Ready to fly! The launch review will show a few amber risks. You can fly with them, or fix them for a better score.'
     : 'Looks great! Everything is green. Head to the launch review.');
-  const btn = next && next.fix ? `<button class="btn primary small" data-act="coachFix" data-arg="${next.fix.arg}">✨ ${esc(next.fix.label)}</button>`
+  const btn = next && next.fix && next.fix.locked ? `<button class="btn ghost small" disabled>👤 ${esc(next.fix.label)}</button>`
+    : next && next.fix ? `<button class="btn primary small" data-act="coachFix" data-arg="${next.fix.arg}">✨ ${esc(next.fix.label)}</button>`
     : !next ? '<button class="btn primary small" data-act="toReview">Launch review →</button>' : '';
   return `<div class="coach" id="coach"><div class="face" style="--crew:${CREW.ollie.color}" aria-hidden="true">${FACES.crew.ollie}</div>
     <div class="coach-body"><b style="color:${CREW.ollie.color}">Ollie</b> <span class="small muted">· your coach</span><p>${say}</p>

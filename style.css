@@ -431,12 +431,32 @@ h3, h4 { font-family: var(--round); font-weight: 800; }
 .vs-wrap.won { border-color: var(--good); } .vs-wrap.lost { border-color: var(--pink); }
 .vs-wrap td.best { color: var(--good); font-weight: 800; }
 
+/* ---------- co-op ---------- */
+.online-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: .5rem 0 1rem; }
+.codein { font-family: var(--mono); font-size: 1.3rem; letter-spacing: .25em; text-transform: uppercase; width: 9rem; text-align: center; }
+.neterr { background: rgba(239, 71, 111, .15); border: 2px solid var(--bad); border-radius: 12px; padding: .5rem .7rem; }
+.roomcode { font-size: clamp(2.4rem, 12vw, 3.6rem); font-weight: 600; letter-spacing: .25em; color: var(--accent); text-shadow: 0 4px 0 var(--ink); }
+.lobby { text-align: center; } .lobby .crew, .lobby .rolehelp { text-align: left; }
+.crew { list-style: none; padding: 0; } .crew li { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; padding: .5rem 0; border-top: 2px solid var(--line); }
+.crew .roles { display: flex; flex-wrap: wrap; gap: .3rem; margin-left: auto; }
+.role-tag { display: inline-block; font-size: .72rem; font-weight: 800; padding: .1rem .5rem; border-radius: 99px; border: 2px solid var(--ink); color: #1b1f3b; white-space: nowrap; }
+.r-lead { background: var(--accent); } .r-prop { background: #ff9f5a; } .r-sci { background: var(--accent2); } .r-pwr { background: var(--blue); }
+.rolehelp p { margin: .3rem 0; }
+.topbar .ico { display: none; }
+.roomchip { font-size: .8rem; background: var(--card2); border: 2px solid var(--ink); border-radius: 99px; padding: .15rem .55rem; white-space: nowrap; }
+.votes { list-style: none; padding: 0; } .votes li { padding: .3rem 0; } .votes li.go { color: var(--good); font-weight: 800; }
+
 /* phones */
 @media (max-width: 720px) {
   .hangar-grid, .explore-grid, .paint-grid { grid-template-columns: minmax(0, 1fr); }
   .mount { width: 56px; } .mount.wing { width: 50px; }
   .shelf { max-height: none; }
   .tb-mission { display: none; }
+  .roomchip b, .roomchip .rl { display: none; }
+  .topbar { gap: .35rem; padding: .5rem 10px; }
+  .topbar .lbl { display: none; } .topbar .ico { display: inline; }
+  .topbar .btn.small { padding: .25em .5em; }
+  .iconbtn { width: 2.1rem; height: 2.1rem; }
   .brand span { display: none; }
   .findlist li { grid-template-columns: 6rem 1fr; }
   .findlist li span:last-child { grid-column: 2; }
