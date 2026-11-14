@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- Written with the help of Claude, an AI assistant made by Anthropic, as directed and reviewed by the team. See "Use of AI" in README.md. Licensed under Apache-2.0 (see LICENSE). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="ai-assistance" content="Code, in-game text and synthesized audio written with the help of Claude (Anthropic), directed and reviewed by the team. No AI-generated images.">
+<title>Last Signal from Ceruvia</title>
+<style>body{background:#0b1030;color:#eef;font-family:system-ui,sans-serif;padding:16px}</style>
+</head>
+<body>
+<main id="app"><h1>Last Signal from Ceruvia</h1><p id="status">Loading data…</p></main>
+<script src="js/data.js"></script>
+<script>
+  // Temporary step-1 check page; replaced by the real shell in step 3.
+  document.getElementById('status').textContent =
+    MISSIONS.length + ' missions, ' + Object.keys(PARTS).length + ' parts, ' +
+    Object.keys(LAUNCHERS).length + ' rockets, ' + EVENTS.length + ' events loaded.';
+</script>
+</body>
+</html>
