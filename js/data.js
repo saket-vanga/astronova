@@ -449,6 +449,7 @@ const MISSIONS = [
       polar: { name: 'Low polar orbit', dv: 0.9, eclipse: 0.3, dataFactor: 1, detail: true, radRisk: 0.025, maxLat: 90, polar: true, desc: 'Sees every latitude, including the plumes at the south pole.' }
     },
     clues: [{ id: 'water', name: 'Water' }, { id: 'food', name: 'Food & energy' }, { id: 'shelter', name: 'Shelter' }, { id: 'signal', name: 'The signal' }, { id: 'life', name: 'Signs of life' }],
+    plumeSite: 'plu',
     tagFinding: f('c-plume-sample', 'life', 45, 'Plume grains caught', 'The collector swept through the plume and trapped frozen droplets of ocean water.'),
     sampleLab: { pts: 80, title: 'Ocean water in the lab', why: 'The frozen droplets hold salts, carbon compounds and tiny structures that labs will study for years.' },
     sites: [

@@ -1,0 +1,915 @@
+/* Written with the help of Claude, an AI assistant made by Anthropic, as directed and reviewed by the team. See "Use of AI" in README.md. Licensed under Apache-2.0 (see LICENSE). */
+
+/* The shell: global state, saving, rendering, every screen, the mission run, scoring and the report. */
+
+// ---------- state ----------
+const S = {
+  screen: 'title', mode: 'solo', players: [], uid: null, difficulty: 'rookie', dlg: 0, hangarTab: 'build', showAdv: false,
+  campaign: { done: {}, unlocked: 1 }, mission: null, builds: {},
+  build: null, plan: null, paint: 'white', shipName: '', patch: null, brush: null, trades: {},
+  run: null, game: null, retriesLeft: 0, selSite: null, lastPass: null, anim: 0, ready: {},
+  turn: null, notice: null, watch: null, myName: '', joinCode: '', vs: null
+};
+
+// ---------- helpers ----------
+const $ = sel => document.querySelector(sel);
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
+const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* private mode */ } }
+};
+const app = document.getElementById('app');
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function plural(n, w) {
+  if (n === 1) return n + ' ' + w;
+  if (/[^aeiou]y$/.test(w)) return n + ' ' + w.slice(0, -1) + 'ies';
+  return n + ' ' + w + (/(s|x|ch|sh)$/.test(w) ? 'es' : 's');
+}
+
+// ---------- saving ----------
+const SAVE_KEY = 'ceruvia-save-v2';
+function saveCampaign() {
+  store.set(SAVE_KEY, JSON.stringify({ v: 2, campaign: S.campaign, builds: S.builds, difficulty: S.difficulty,
+    shipName: S.shipName, paint: S.paint, patch: S.patch, trades: S.trades }));
+}
+function loadCampaign() {
+  try {
+    const d = JSON.parse(store.get(SAVE_KEY) || 'null');
+    if (!d || d.v !== 2) return false;
+    if (d.campaign && d.campaign.done) S.campaign = d.campaign;
+    if (d.builds) S.builds = d.builds;
+    if (DIFF[d.difficulty]) S.difficulty = d.difficulty;
+    S.shipName = d.shipName || ''; S.paint = d.paint || 'white'; S.patch = d.patch || null; S.trades = d.trades || {};
+    return true;
+  } catch (e) { return false; }
+}
+function saveBuild() {
+  if (!S.mission || !S.build) return;
+  S.builds[S.mission.id] = { build: clone(S.build), plan: clone(S.plan) };
+  saveCampaign();
+}
+function hasProgress() { return Object.keys(S.campaign.done).length > 0 || Object.keys(S.builds).length > 0; }
+
+// ---------- campaign helpers ----------
+function starsOn(id) { return (S.campaign.done[id] || {}).stars || 0; }
+function totalStars() { return MISSIONS.reduce((s, m) => s + starsOn(m.id), 0); }
+function bonusBudget() {
+  if (!S.mission) return 0;
+  return MISSIONS.filter(m => m.num < S.mission.num).reduce((s, m) => s + starsOn(m.id), 0) * STAR_BONUS;
+}
+function isUnlockedMission(m) { return !!DIFF[S.difficulty].allOpen || m.num <= S.campaign.unlocked; }
+function C() { return calc(S.build, S.plan, S.mission, S.difficulty, bonusBudget()); }
+
+function prepareMission(m) {
+  S.mission = m;
+  const saved = S.builds[m.id];
+  S.build = saved && saved.build && BUSES[saved.build.bus] ? clone(saved.build) : emptyBuild('medium');
+  if (!busUnlocked(S.build.bus, m, S.difficulty)) resizeBuild(S.build, 'medium');
+  S.plan = Object.assign(defaultPlan(m), saved ? clone(saved.plan) : {});
+  if (!m.trajs[S.plan.traj]) S.plan.traj = Object.keys(m.trajs)[0];
+  if (!m.orbits[S.plan.orbit]) S.plan.orbit = Object.keys(m.orbits)[0];
+  if (!LAUNCHERS[S.plan.lv]) S.plan.lv = 'condor';
+  if (!m.objectives.some(o => o.id === S.plan.goal)) S.plan.goal = null;
+  S.plan.opsMonths = clamp(S.plan.opsMonths || m.ops[2], m.ops[0], m.ops[1]);
+  S.dlg = 0; S.hangarTab = 'build'; S.run = null; S.game = null; S.selSite = null; S.lastPass = null; S.ready = {}; S.turn = null;
+  syncFuel();
+}
+
+// ---------- co-op roles (solo play can always act; net.js fills in players) ----------
+function sortedPlayers() { return S.players.slice().sort((a, b) => (a.joined || 0) - (b.joined || 0)); }
+function ownerOf(role) {
+  if (S.mode !== 'online' || !S.players.length) return null;
+  const p = sortedPlayers();
+  return p[ROLE_ORDER.indexOf(role) % p.length];
+}
+function canAct(role) { if (S.mode !== 'online') return true; const o = ownerOf(role); return !o || o.uid === S.uid; }
+function holderName(role) { const o = ownerOf(role); return o ? `${o.name} (${ROLES[role].name})` : ROLES[role].name; }
+function waitFor(role) { return 'Waiting for ' + holderName(role); }
+
+// ---------- mission steps (co-op hands each one to the player who owns it) ----------
+const STEP_ROLE = { doLaunch: 'prop', doInsertion: 'prop', doCruise: 'lead', doReentry: 'lead', doLanding: 'sci', doTag: 'sci' };
+const STEPS = {};
+function runStep(name, ...args) {
+  const role = STEP_ROLE[name];
+  if (role && !canAct(role)) {
+    S.turn = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), role, step: name, args };
+    toast('Handing the controls to ' + holderName(role) + '.');
+    render();
+    return;
+  }
+  STEPS[name](...args);
+}
+
+// ---------- rendering ----------
+const SCREENS = {};
+function render() {
+  const fn = SCREENS[S.screen] || SCREENS.title;
+  renderTopbar();
+  app.innerHTML = fn.html();
+  app.dataset.screen = S.screen;
+  if (fn.after) fn.after();
+}
+function go(screen) { stopAnim(); S.screen = screen; render(); window.scrollTo({ top: 0 }); }
+function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
+function stopAnim() { if (S.anim) { cancelAnimationFrame(S.anim); S.anim = 0; } }
+
+const FLIGHT_SCREENS = ['game', 'watch', 'transit', 'explore', 'crisis'];
+function renderTopbar() {
+  const tb = $('#topbar');
+  if (!tb) return;
+  const flying = FLIGHT_SCREENS.includes(S.screen);
+  const showMission = S.mission && !['title', 'setup', 'map', 'finale'].includes(S.screen);
+  tb.innerHTML = `<button class="brand" ${flying ? 'disabled' : 'data-act="home"'} aria-label="Title screen">📡 <span>Last Signal</span></button>
+    ${showMission ? `<span class="tb-mission small">${FACES.planet[S.mission.planet]} M${S.mission.num} · ${esc(S.mission.name)}</span>` : ''}
+    <span class="grow"></span>
+    ${!flying && showMission ? '<button class="btn small ghost" data-act="toMap">Mission control</button>' : ''}
+    <button class="iconbtn" data-act="openHandbook" aria-label="Open the handbook" title="Handbook">📖</button>
+    <button class="iconbtn" data-act="toggleMute" aria-label="${SFX.muted ? 'Turn sound on' : 'Mute sound'}" title="Sound">${SFX.muted ? '🔇' : '🔊'}</button>`;
+}
+
+// ---------- modal, toast, handbook ----------
+let modalCb = null, pendingEvent = null;
+function showModal(html, opts) {
+  opts = opts || {};
+  const m = $('#modal');
+  m.innerHTML = `<div class="modal-box${opts.wide ? ' wide' : ''}${opts.cls ? ' ' + opts.cls : ''}" role="dialog" aria-modal="true">${html}</div>`;
+  m.hidden = false;
+  m.dataset.locked = opts.locked ? '1' : '';
+  modalCb = opts.onNext || null;
+  const b = m.querySelector('button.primary') || m.querySelector('button');
+  if (b) b.focus();
+}
+function closeModal() { const m = $('#modal'); m.hidden = true; m.innerHTML = ''; m.dataset.locked = ''; modalCb = null; }
+function confirmModal(title, text, act, yes) {
+  showModal(`<h3>${title}</h3><p>${text}</p><div class="row gap end"><button class="btn ghost" data-act="closeModal">Cancel</button>
+    <button class="btn primary" data-act="${act}">${yes || 'Yes'}</button></div>`);
+}
+function toast(text) {
+  const box = $('#toasts');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.className = 'toast'; el.setAttribute('role', 'status'); el.textContent = text;
+  box.appendChild(el);
+  setTimeout(() => el.classList.add('out'), 2600);
+  setTimeout(() => el.remove(), 3100);
+}
+function handbookHtml() {
+  return `<div class="row between"><h2>📖 Handbook</h2><button class="iconbtn" data-act="closeHandbook" aria-label="Close the handbook">✕</button></div>` +
+    HANDBOOK.map((h, i) => `<details${i === 0 ? ' open' : ''}><summary>${h.title}</summary><div class="hb">${h.html}</div></details>`).join('') +
+    `<details><summary>Learn more</summary><div class="hb"><ul class="links">${RESOURCES.map(r =>
+      `<li><a href="${r.url}" target="_blank" rel="noopener">${esc(r.name)}</a><br><span class="small muted">${esc(r.note)}</span></li>`).join('')}</ul></div></details>`;
+}
+
+// ---------- shared bits of HTML ----------
+function crewLine(who, text) {
+  const c = CREW[who];
+  return `<div class="line"><div class="face" style="--crew:${c.color}" aria-hidden="true">${FACES.crew[who]}</div>
+    <div class="bubble"><b style="color:${c.color}">${c.name}</b> <span class="small muted">${c.job}</span><p>${esc(text)}</p></div></div>`;
+}
+function starsHtml(n, max) { max = max || 3; let s = ''; for (let i = 0; i < max; i++) s += i < n ? '★' : '☆'; return `<span class="stars" aria-label="${n} of ${max} stars">${s}</span>`; }
+
+// ---------- screens: title, setup, map ----------
+SCREENS.title = {
+  html() {
+    const has = hasProgress();
+    return `<div class="title-screen">
+      <div class="eyebrow">A space mission design game</div>
+      <h1 class="game-title">Last Signal <small>from Ceruvia</small></h1>
+      <p class="lede">A faint radio signal is coming from an icy moon, and it is fading. Fly five missions to prove your team can reach it. Pick a science goal, build a spacecraft, fly it, and find out what is calling.</p>
+      <div class="stack">
+        ${has ? '<button class="btn primary big" data-act="continueGame">Continue</button>' : ''}
+        <button class="btn ${has ? 'ghost' : 'primary'} big" data-act="newGame">${has ? 'New campaign' : 'Play'}</button>
+        <button class="btn ghost" data-act="openHandbook">How to play</button>
+      </div></div>`;
+  }
+};
+
+SCREENS.setup = {
+  html() {
+    const cards = DIFF_ORDER.map(k => { const d = DIFF[k];
+      return `<button class="choice${S.difficulty === k ? ' sel' : ''}" data-act="setDiff" data-arg="${k}"><b>${d.label}${k === 'rookie' ? ' <span class="pill">Recommended</span>' : ''}</b><span class="small muted">${d.desc}</span></button>`; }).join('');
+    return `<div class="narrow">
+      <div class="eyebrow">New crew member</div><h2>Who is flying?</h2>
+      <label class="field"><span>Nickname</span>
+        <input type="text" maxlength="16" placeholder="e.g. Comet Kid" value="${esc(S.myName)}" data-input="myName" autocomplete="off" spellcheck="false">
+        <span class="small muted">Just a nickname for the leaderboard. Please don't use your real name.</span></label>
+      <h3>Difficulty</h3><div class="choices">${cards}</div>
+      <div class="row end"><button class="btn primary big" data-act="startCampaign">To Mission control →</button></div></div>`;
+  }
+};
+
+SCREENS.map = {
+  html() {
+    const cards = MISSIONS.map(m => {
+      const open = isUnlockedMission(m), done = S.campaign.done[m.id];
+      return `<button class="mission${open ? '' : ' locked'}" data-act="pickMission" data-arg="${m.id}"${open ? '' : ' aria-disabled="true"'}>
+        <span class="planet" aria-hidden="true">${open ? FACES.planet[m.planet] : '🔒'}</span>
+        <span class="mtext"><span class="eyebrow">Mission ${m.num} · ${esc(m.target)}</span><b>${esc(m.name)}</b>
+        <span class="small muted">${open ? esc(m.teaches) : 'Earn a star on mission ' + (m.num - 1) + ' to unlock.'}</span></span>
+        <span class="mscore">${starsHtml(starsOn(m.id))}${done ? `<span class="small mono">${done.score} pts</span>` : ''}</span></button>`;
+    }).join('');
+    const finale = starsOn('m5') > 0 ? '<button class="btn primary" data-act="toFinale">🎉 The finale</button>' : '';
+    return `<div class="row between wrap"><div><div class="eyebrow">${esc(DIFF[S.difficulty].label)} · ${totalStars()} / 15 stars</div><h2>Mission control</h2></div>
+      <div class="row gap wrap">${finale}<button class="btn ghost small" data-act="loadCode">Load a design code</button><button class="btn ghost small" data-act="toSetup">Difficulty</button></div></div>
+      <p class="muted">Each star adds ${fmtM(STAR_BONUS)} to the budget of later missions. You need one star to unlock the next mission.</p>
+      <div class="missions">${cards}</div>
+      <div class="card"><h3>🏆 Leaderboard (this device)</h3>${boardHtml()}</div>
+      <div class="row end"><button class="btn ghost small" data-act="resetSave">Reset progress</button></div>`;
+  }
+};
+
+// ---------- briefing and goal ----------
+SCREENS.briefing = {
+  html() {
+    const m = S.mission, lines = m.intro.slice(0, S.dlg + 1), more = S.dlg < m.intro.length - 1;
+    return `<div class="narrow"><div class="eyebrow">Mission ${m.num} briefing · ${esc(m.target)}</div><h2>${FACES.planet[m.planet]} ${esc(m.name)}</h2>
+      <div class="dialog">${lines.map(([w, t]) => crewLine(w, t)).join('')}</div>
+      ${more ? `<div class="row gap end"><button class="btn ghost small" data-act="dlgSkip">Skip</button><button class="btn primary" data-act="dlgNext">Next ▸</button></div>` : `
+      <div class="card"><h3>⭐ Objectives</h3><ol class="objs">${m.objectives.map(o => `<li>${esc(o.text)}</li>`).join('')}</ol>
+        <p class="small muted">Each objective you complete earns a star.</p></div>
+      <div class="card"><h3>⚠️ What matters most here</h3>${m.critical.map(([k, v]) => `<p><b>${esc(k)}:</b> ${esc(v)}</p>`).join('')}</div>
+      <div class="card how"><h3>🧭 How every mission works</h3><ol>
+        <li><b>Pick a science goal.</b> It tells you which parts matter most.</li>
+        <li><b>Build and plan.</b> Add parts, then choose a rocket, orbit and ground stations. Keep every meter out of the red.</li>
+        <li><b>Pass the launch review.</b> Red items stop the launch. Amber items are risks.</li>
+        <li><b>Fly it and do science.</b> Then read the report to see what to try next.</li></ol></div>
+      <div class="row end"><button class="btn primary big" data-act="toGoal">Choose a science goal →</button></div>`}</div>`;
+  }
+};
+
+SCREENS.goal = {
+  html() {
+    const m = S.mission, lead = canAct('lead');
+    const cards = m.objectives.map(o => {
+      const n = GOAL_NEEDS[o.id], parts = goalParts(m, o.id).filter(id => isUnlocked(id, m, S.difficulty));
+      return `<div class="card goal${S.plan.goal === o.id ? ' sel' : ''}"><h3>🎯 ${esc(o.text)}</h3>
+        <p><b>Who uses the data:</b> ${esc(n.users)}</p><p class="small">${esc(n.why)}</p>
+        <div class="row gap wrap">${parts.map(id => partChip(id, ' ★')).join('')}</div>
+        <div class="row end"><button class="btn ${S.plan.goal === o.id ? 'primary' : 'ghost'}" data-act="setGoal" data-arg="${o.id}"${lead ? '' : ' disabled'}>${S.plan.goal === o.id ? 'Chosen ✓' : 'Make this the prime goal'}</button></div></div>`;
+    }).join('');
+    return `<div class="narrow"><div class="eyebrow">Step 1 · Science first</div><h2>Choose the prime science goal</h2>
+      <p class="muted">Real missions start with a question, not a spacecraft. Your prime goal decides which parts matter most. Meeting it is worth +100 points. You can still earn the other stars.</p>
+      ${lead ? '' : `<p class="small muted">${esc(waitFor('lead'))} to choose.</p>`}${cards}
+      ${S.plan.goal ? '<div class="row end"><button class="btn primary big" data-act="toHangar">To the hangar →</button></div>' : ''}</div>`;
+  }
+};
+
+SCREENS.hangar = { html() { return hangarHtml(); } };
+
+// ---------- launch review ----------
+SCREENS.review = {
+  html() {
+    const m = S.mission, c = C(), items = review(S.build, S.plan, m, c);
+    const blocks = items.filter(i => i.level === 'block'), warns = items.filter(i => i.level === 'warn');
+    const icon = { block: '✗', warn: '!', ok: '✓' };
+    const segs = Object.keys(SEGMENTS).map(k => {
+      const list = items.filter(i => i.seg === k);
+      if (!list.length) return '';
+      const sg = SEGMENTS[k];
+      return `<div class="card seg"><h3>${sg.icon} ${sg.name}</h3><p class="small muted">${sg.desc}</p>
+        ${list.map(i => `<div class="ritem ${i.level}"><span class="ricon" aria-hidden="true">${icon[i.level]}</span><div><b>${esc(i.title)}</b><p class="small">${esc(i.why)}</p></div></div>`).join('')}</div>`;
+    }).join('');
+    const dev = devYears(c);
+    return `<div class="narrow"><div class="eyebrow">Step 3 · Launch review</div><h2>Is ${esc(S.shipName || 'your spacecraft')} ready to fly?</h2>
+      <div class="card summary ${blocks.length ? 'bad' : warns.length ? 'warn' : 'ok'}">
+        <b>${blocks.length ? `${plural(blocks.length, 'problem')} must be fixed before launch.` : warns.length ? `Cleared to launch, with ${plural(warns.length, 'risk')}.` : 'All green. Cleared to launch!'}</b>
+        <p class="small">Plan: ${dev.toFixed(1)} years to build and test, ${c.cruise ? c.cruise.toFixed(1) + ' years of cruise, ' : ''}${S.plan.opsMonths} months of science (${plural(c.passes, 'pass')})${m.needReturn ? ', then the trip home' : ''}.</p></div>
+      ${segs}
+      <div class="row between wrap"><button class="btn ghost" data-act="toHangar">← Back to the hangar</button>
+        <button class="btn primary big" data-act="launch"${blocks.length ? ' disabled' : ''}>🚀 Launch!</button></div></div>`;
+  }
+};
+
+// ---------- the mission run ----------
+function log(text, kind) { if (S.run) S.run.log.push({ text, kind: kind || 'info' }); }
+function snapCalc(c) { const s = clone(c); s.budget = c.budget; s.budgetLeft = c.budgetLeft; return s; }
+
+function startRun() {
+  const c = C();
+  saveBuild();
+  S.run = { missionId: S.mission.id, c: snapCalc(c), d: clone(c.d), plan: clone(S.plan), build: clone(S.build),
+    log: [], scores: {}, finds: [], passesLeft: 0, passPenalty: 0, sciMult: c.d.adcs ? c.d.adcs.mult : 1, downMult: 1, dataLoss: 1,
+    extraCost: 0, bonusSci: 0, fuelSpare: c.fuel - c.fuelReq, broken: [], landed: false, landedSite: null, landerUsed: false,
+    tagOk: false, tagTried: false, capsuleLanded: false, returnShort: false, crisisClean: false, crisisDone: false, events: [], result: null };
+  S.retriesLeft = DIFF[S.difficulty].retries;
+  S.selSite = null; S.lastPass = null;
+  runStep('doLaunch');
+}
+
+// Design effects that every minigame reads.
+function pilotOpts(extra) {
+  const c = S.run.c, d = S.run.d;
+  return Object.assign({
+    heavy: c.massMargin < 0.3 ? (0.3 - c.massMargin) / 0.3 : 0,
+    agility: d.adcs ? d.adcs.agility : 0.8,
+    tol: DIFF[S.difficulty].tol,
+    assist: isSimple(),
+    retry: false
+  }, extra || {});
+}
+
+STEPS.doLaunch = function () {
+  startGame('launch', pilotOpts({
+    lesson: r => r.acc > 0.8 ? 'A smooth gravity turn wastes the least fuel.' : 'Every wobble off the line burns fuel. A lighter spacecraft is easier to steer.'
+  }), res => {
+    const r = S.run;
+    r.scores.launch = res.score;
+    const lost = Math.round(r.c.fuel * 0.04 * (1 - res.acc));
+    if (lost > 0) { r.fuelSpare -= lost; log(`Launch: ${fmtPct(res.acc)} on the line. Steering wobbles burned ${fmtKg(lost)} of fuel.`, res.acc > 0.7 ? 'info' : 'warn'); }
+    else log('Launch: a clean gravity turn.', 'good');
+    eventChain(afterLaunch);
+  });
+};
+function afterLaunch() { if (S.mission.minigames.includes('dodge')) runStep('doCruise'); else afterCruise(); }
+function afterCruise() { if (S.mission.minigames.includes('insertion')) runStep('doInsertion'); else arrive(); }
+
+STEPS.doCruise = function () {
+  const d = S.run.d;
+  startGame('dodge', pilotOpts({
+    span: 1 + d.span * 0.25, hazard: S.mission.hazard, shield: d.shields * PARTS.shield.hits,
+    lesson: () => d.span > 2 ? 'Big solar wings are big targets.' : 'Shields soak up hits that would break parts.'
+  }), res => {
+    const r = S.run;
+    r.scores.dodge = res.score;
+    let hits = res.hits;
+    const absorbed = Math.min(hits, r.d.shields * PARTS.shield.hits);
+    if (absorbed) { r.d.shields -= Math.ceil(absorbed / PARTS.shield.hits); hits -= absorbed; log(`Cruise: your debris shield absorbed ${plural(absorbed, 'hit')}.`, 'good'); }
+    for (let i = 0; i < hits; i++) log('Cruise: debris hit! ' + damage(r), 'bad');
+    if (!res.hits) log('Cruise: no debris hits.', 'good');
+    afterCruise();
+  });
+};
+
+STEPS.doInsertion = function () {
+  startGame('insertion', pilotOpts({
+    lesson: r => r.err < 0.08 ? 'Stopping right on the line saves fuel for later.' : 'Burning too long or too short wastes fuel fixing the orbit afterwards.'
+  }), res => {
+    const r = S.run;
+    r.scores.insertion = res.score;
+    const extra = Math.round(r.c.fuelReq * res.err * 0.25);
+    r.fuelSpare -= extra;
+    log(extra > 0 ? `Orbit insertion: off by ${fmtPct(res.err)}. Fixing the orbit used ${fmtKg(extra)} of fuel.` : 'Orbit insertion: right on the line.', res.err < 0.1 ? 'good' : 'warn');
+    arrive();
+  });
+};
+
+function arrive() {
+  const r = S.run, c = r.c, m = S.mission;
+  let passes = c.passes - r.passPenalty;
+  if (r.fuelSpare < 0) {
+    if (m.needReturn) {
+      r.returnShort = r.fuelSpare < -0.05 * c.fuelReq;
+      log(r.returnShort ? 'Fuel is short. There may not be enough left to come home.' : 'Fuel is tight, but there should just be enough to come home.', 'warn');
+    } else if (-r.fuelSpare > 0.15 * c.fuelReq) {
+      passes = Math.ceil(passes / 2);
+      log('You ran short of fuel braking into orbit and ended up in a loose, wobbly orbit. Half the science passes are lost.', 'bad');
+    } else { passes -= 1; log('Fuel ran a little short. The team trimmed the orbit and lost one science pass.', 'warn'); }
+  }
+  r.passesLeft = Math.max(1, passes);
+  log(`Arrived at ${m.target} with ${plural(r.passesLeft, 'science pass')} planned.`, 'info');
+  S.selSite = m.sites[0].id;
+  go('explore');
+}
+
+// Share of the science data that reaches Earth.
+function findingFrac(r) {
+  r = r || S.run;
+  const c = r.c, dataOf = list => list.reduce((s, id) => s + PARTS[id].data, 0);
+  const orig = dataOf(c.d.instruments), now = dataOf(r.d.instruments);
+  const gen = orig ? c.genMb * now / orig : 0;
+  let f = gen > 0 ? Math.min(1, c.downMb * r.downMult / gen) : 1;
+  if (!c.recorderOk) f *= 0.85;
+  return f * r.dataLoss;
+}
+
+function doPass(siteId) {
+  const r = S.run, m = S.mission, site = m.sites.find(s => s.id === siteId), orbit = m.orbits[r.plan.orbit];
+  if (!site || r.passesLeft <= 0) return;
+  r.passesLeft--;
+  const got = [], missed = [], pFind = 0.55 + 0.4 * r.c.duty;
+  for (const inst of r.d.instruments) {
+    const f = site.finds[inst];
+    if (!f || r.finds.some(x => x.id === f.id)) continue;
+    if (!canSee(inst, site, orbit)) { missed.push({ inst, why: Math.abs(site.lat) > orbit.maxLat ? 'out of view from this orbit' : 'needs a low orbit' }); continue; }
+    if (Math.random() < pFind) {
+      const rec = Object.assign({}, f, { site: site.id, inst, mult: PARTS[inst].detail && !orbit.detail ? 0.5 : 1 });
+      r.finds.push(rec); got.push(rec);
+    } else missed.push({ inst, why: 'saw nothing new this time' });
+  }
+  // Flying the sample arm through a plume
+  if (r.d.sampler && m.plumeSite === site.id && !r.tagOk) {
+    if (orbit.detail && Math.abs(site.lat) <= orbit.maxLat) {
+      r.tagOk = true;
+      const rec = Object.assign({}, m.tagFinding, { site: site.id, inst: 'sampler', mult: 1 });
+      r.finds.push(rec); got.push(rec);
+    } else missed.push({ inst: 'sampler', why: 'needs a low orbit over the plumes' });
+  }
+  S.lastPass = { site: site.id, got: got.map(f => f.id), missed };
+  log(`Science pass over ${site.name}: ${got.length ? got.map(f => f.title).join(', ') : 'nothing new'}.`, got.length ? 'good' : 'info');
+  rerender();
+  if (got.length) popFinds(got);
+}
+
+function popFinds(list) {
+  showModal(`<h3>🔭 New discoveries!</h3><div class="finds">${list.map(f =>
+    `<div class="find"><b>${esc(f.title)}</b><span class="pill">+${Math.round(f.pts * (f.mult || 1))} pts</span><p class="small">${esc(f.why)}</p>
+     <span class="small muted">${f.inst === 'lander' ? 'Found by the lander' : f.inst === 'sampler' ? 'Sample collected' : 'Found by the ' + esc(PARTS[f.inst].name.toLowerCase())}</span></div>`).join('')}</div>
+    <div class="row end"><button class="btn primary" data-act="closeModal">Nice!</button></div>`, { wide: true });
+}
+
+STEPS.doLanding = function (siteId) {
+  const m = S.mission, site = m.sites.find(s => s.id === siteId);
+  startGame('landing', pilotOpts({ gravity: m.gravity, rough: site.rough || 0.4, retry: true,
+    lesson: r => r.outcome === 'pad' ? 'Slow and steady wins: arrive at walking pace.' : 'Kill your sideways speed first, then come down gently.'
+  }), res => {
+    const r = S.run;
+    r.landerUsed = true;
+    r.scores.landing = res.score;
+    if (res.outcome === 'crash') { log(`Landing: the lander crashed at ${site.name}.`, 'bad'); go('explore'); return; }
+    r.landed = true; r.landedSite = site.id;
+    log(`Landing: down safely at ${site.name}${res.outcome === 'pad' ? ', right on the pad' : ', a little off the pad'}.`, 'good');
+    const f = site.finds.land;
+    go('explore');
+    if (f && !r.finds.some(x => x.id === f.id)) {
+      const rec = Object.assign({}, f, { site: site.id, inst: 'lander', mult: res.outcome === 'pad' ? 1 : 0.8 });
+      r.finds.push(rec);
+      S.lastPass = { site: site.id, got: [f.id], missed: [] };
+      rerender();
+      popFinds([rec]);
+    }
+  });
+};
+
+STEPS.doTag = function (siteId) {
+  const m = S.mission, site = m.sites.find(s => s.id === siteId);
+  startGame('tag', pilotOpts({ gravity: m.gravity, rough: site.rough || 0.4, retry: true,
+    lesson: () => site.rough > 0.6 ? 'Boulders make touching down risky. Smooth ground is safer.' : 'Smooth ground made for a safe touch.'
+  }), res => {
+    const r = S.run;
+    r.tagTried = true;
+    r.scores.tag = res.score;
+    go('explore');
+    if (res.ok) {
+      r.tagOk = true;
+      const rec = Object.assign({}, m.tagFinding, { site: site.id, inst: 'sampler', mult: 1 });
+      r.finds.push(rec);
+      log(`Touch-and-go at ${site.name}: sample collected.`, 'good');
+      rerender(); popFinds([rec]);
+    } else log(`Touch-and-go at ${site.name}: the arm came up empty.`, 'bad');
+  });
+};
+
+function finishExplore() {
+  const m = S.mission, r = S.run;
+  if (m.crisis && !r.crisisDone) { go('crisis'); return; }
+  if (m.needReturn) { runStep('doReentry'); return; }
+  finalize();
+}
+
+// Stand-in until the turn-based power emergency arrives in build step 5.
+function resolveCrisisAuto() {
+  const r = S.run, d = r.d, cr = S.mission.crisis;
+  r.crisisDone = true;
+  r.crisisClean = d.rtg > 0 || d.batteryWh >= 2000 || d.fuelcell > 0;
+  if (r.crisisClean) log(`${cr.name}: your backup power kept the spacecraft running. No data lost.`, 'good');
+  else { r.sciMult *= 0.8; r.dataLoss *= 0.8; log(`${cr.name}: the battery ran flat. Instruments froze and unsent data was lost.`, 'bad'); }
+}
+
+STEPS.doReentry = function () {
+  const r = S.run;
+  if (!r.d.capsule) { log('There was no capsule, so nothing came back to Earth.', 'warn'); finalize(); return; }
+  if (r.returnShort) { log('Not enough fuel was left for the trip home. The capsule never made it back.', 'bad'); finalize(); return; }
+  startGame('reentry', pilotOpts({ retry: true,
+    lesson: r2 => r2.ok ? 'Too steep and you burn up. Too shallow and you skip off into space.' : 'Keep the capsule in the corridor, and open the parachute only when it is slow.'
+  }), res => {
+    r.scores.reentry = res.score;
+    r.capsuleLanded = res.ok;
+    log(res.ok ? 'Reentry: the capsule landed safely on Earth.' : 'Reentry: the capsule was lost.', res.ok ? 'good' : 'bad');
+    finalize();
+  });
+};
+
+// ---------- events ----------
+function eventChain(done) {
+  const m = S.mission, r = S.run;
+  const pool = shuffle(EVENTS.filter(e => (!e.needHazard || m.hazard > 0) && !(e.id === 'budget' && !isFinite(r.c.budget))));
+  const list = pool.slice(0, DIFF[S.difficulty].events);
+  let i = 0;
+  go('transit');
+  const next = () => { if (i >= list.length) { done(); return; } showEvent(list[i++], next); };
+  next();
+}
+function showEvent(ev, next) {
+  S.run.events.push(ev.id);
+  if (ev.choices) {
+    pendingEvent = { ev, next };
+    showModal(`<div class="event"><div class="ev-icon" aria-hidden="true">${ev.icon}</div><h3>${ev.title}</h3><p>${ev.text}</p>
+      <div class="row gap wrap end">${ev.choices.map((ch, i) => `<button class="btn ${i ? 'ghost' : 'primary'}" data-act="eventChoice" data-arg="${i}">${ch.label}</button>`).join('')}</div></div>`, { locked: true });
+    return;
+  }
+  eventOutcome(ev, ev.apply(S.run), next);
+}
+function eventOutcome(ev, res, next) {
+  log(`${ev.title}: ${res.text}`, res.good ? 'good' : 'bad');
+  showModal(`<div class="event"><div class="ev-icon" aria-hidden="true">${ev.icon}</div><h3>${ev.title}</h3><p class="muted">${ev.text}</p>
+    <p class="outcome ${res.good ? 'good' : 'bad'}">${res.good ? '✅' : '⚠️'} ${esc(res.text)}</p>
+    <div class="row end"><button class="btn primary" data-act="modalNext">Continue</button></div></div>`, { locked: true, onNext: next });
+}
+
+SCREENS.transit = {
+  html() {
+    const m = S.mission;
+    return `<div class="narrow"><div class="card transit"><div class="eyebrow">In flight</div><h2>🛰️ On the way to ${esc(m.target)}</h2>
+      <p class="muted">${S.run && S.run.c.cruise ? `A ${S.run.c.cruise.toFixed(1)}-year cruise. Mission Control is watching the telemetry.` : 'Climbing to orbit. Mission Control is watching the telemetry.'}</p>
+      ${logHtml(S.run ? S.run.log.slice(-4) : [])}</div></div>`;
+  }
+};
+function logHtml(list) { return `<ul class="log">${list.map(l => `<li class="${l.kind}">${esc(l.text)}</li>`).join('')}</ul>`; }
+
+// ---------- exploring ----------
+SCREENS.explore = {
+  html() {
+    const r = S.run, m = S.mission, orbit = m.orbits[r.plan.orbit];
+    const site = m.sites.find(s => s.id === S.selSite) || m.sites[0];
+    const band = (90 - orbit.maxLat) / 180 * 100;
+    const dots = m.sites.map(s => {
+      const n = r.finds.filter(f => f.site === s.id).length;
+      return `<button class="sitedot${s.id === site.id ? ' sel' : ''}${n ? ' found' : ''}" style="left:${s.x * 100}%;top:${(90 - s.lat) / 180 * 100}%"
+        data-act="selSite" data-arg="${s.id}" aria-label="${esc(s.name)}"><span>${n || ''}</span></button>`;
+    }).join('');
+    const rows = Object.entries(site.finds).map(([k, f]) => {
+      const have = r.finds.some(x => x.id === f.id);
+      let state;
+      if (have) state = '<span class="good">✓ found</span>';
+      else if (k === 'land') state = r.d.lander ? (r.landerUsed ? '<span class="muted">lander already used</span>' : 'land here to look') : '<span class="muted">needs a lander</span>';
+      else if (!r.d.instruments.includes(k)) state = `<span class="muted">needs the ${esc(PARTS[k].name.toLowerCase())}</span>`;
+      else if (!canSee(k, site, orbit)) state = `<span class="warnc">${Math.abs(site.lat) > orbit.maxLat ? 'out of view from this orbit' : 'needs a low orbit'}</span>`;
+      else state = 'ready to scan';
+      const who = k === 'land' ? '🛬 Lander' : (CAT_STYLE[PARTS[k].cat].icon + ' ' + esc(PARTS[k].short));
+      const clue = (m.clues.find(cl => cl.id === f.tag) || {}).name || '';
+      return `<li><span>${who}</span><span class="small">${have ? esc(f.title) : '??? · ' + esc(clue)}</span><span class="small">${state}</span></li>`;
+    }).join('');
+    const sciRole = canAct('sci');
+    const canLand = m.minigames.includes('landing') && r.d.lander && !r.landerUsed;
+    const canTag = m.minigames.includes('tag') && r.d.sampler && !r.tagOk;
+    const last = S.lastPass && S.lastPass.site === site.id && S.lastPass.missed.length
+      ? `<p class="small muted">Last pass: ${S.lastPass.missed.map(x => esc(x.inst === 'sampler' ? 'sample arm' : PARTS[x.inst].short) + ' ' + x.why).join('; ')}.</p>` : '';
+    return `<div class="row between wrap"><div><div class="eyebrow">Step 4 · Science operations</div><h2>${FACES.planet[m.planet]} Exploring ${esc(m.target)}</h2></div>
+      <div class="row gap wrap"><span class="pill">🛰️ ${plural(r.passesLeft, 'pass')} left</span><span class="pill">📶 ${fmtPct(findingFrac())} of data home</span><span class="pill">🔭 ${plural(r.finds.length, 'discovery')}</span></div></div>
+      <div class="explore-grid">
+        <div class="card"><div class="planetmap" style="--pc:${planetColor(m.planet)}">
+          <div class="nocov top" style="height:${band}%"></div><div class="nocov bot" style="height:${band}%"></div>${dots}</div>
+          <p class="small muted">Your ${esc(orbit.name.toLowerCase())} sees latitudes up to ${orbit.maxLat}°. Shaded areas are out of view${r.d.lander ? ', but the lander can go anywhere' : ''}.</p></div>
+        <div class="card"><h3>${esc(site.name)} <span class="small muted">${Math.abs(site.lat)}° ${site.lat >= 0 ? 'N' : 'S'}</span></h3>
+          <ul class="findlist">${rows}</ul>${last}
+          <div class="row gap wrap">
+            <button class="btn primary" data-act="pass"${r.passesLeft > 0 && sciRole ? '' : ' disabled'}>🔭 Science pass here</button>
+            ${canLand ? `<button class="btn ghost" data-act="land"${sciRole ? '' : ' disabled'}>🛬 Land here</button>` : ''}
+            ${canTag ? `<button class="btn ghost" data-act="tag"${sciRole ? '' : ' disabled'}>🦾 Touch-and-go here</button>` : ''}
+          </div>${sciRole ? '' : `<p class="small muted">${esc(waitFor('sci'))} runs the science.</p>`}</div></div>
+      <div class="card"><h3>📜 Mission log</h3>${logHtml(r.log.slice(-6))}</div>
+      <div class="row end"><button class="btn ${r.passesLeft ? 'ghost' : 'primary'}" data-act="finishExplore"${canAct('lead') ? '' : ' disabled'}>Finish science →</button></div>`;
+  }
+};
+function planetColor(p) { return { earth: '#3d7bd9', moon: '#9aa0b4', asteroid: '#6b5a4e', mars: '#c8573a', ceruvia: '#9fd8ef' }[p] || '#888'; }
+
+SCREENS.crisis = {
+  html() {
+    const cr = S.mission.crisis, d = S.run.d;
+    const backup = [d.rtg ? plural(d.rtg, 'RTG') : '', d.batteryWh >= 2000 ? 'a big battery' : '', d.fuelcell ? 'a fuel cell' : ''].filter(Boolean);
+    return `<div class="narrow"><div class="card crisis"><div class="eyebrow">Emergency</div><h2>⚡ ${esc(cr.name)}!</h2><p>${esc(cr.text)}</p>
+      <p>${backup.length ? `You have ${backup.join(' and ')} to keep the lights on.` : 'You have no backup power. The battery will have to do.'}</p>
+      <p class="small muted">The full power emergency, where you switch systems off to survive, arrives in a later build step.</p>
+      <div class="row end"><button class="btn primary" data-act="crisisDone"${canAct('pwr') ? '' : ' disabled'}>Ride it out →</button></div></div></div>`;
+  }
+};
+
+// ---------- scoring ----------
+function liveR(r) {
+  r = r || S.run;
+  const m = S.mission, tags = {}, sites = new Set();
+  for (const f of r.finds) { tags[f.tag] = (tags[f.tag] || 0) + 1; if (f.site) sites.add(f.site); }
+  return { found: new Set(r.finds.map(f => f.id)), tags, sitesWithFinds: sites.size,
+    clueCount: m.clues.filter(c => tags[c.id]).length, landed: r.landed, tagOk: r.tagOk, capsuleLanded: r.capsuleLanded,
+    crisisClean: r.crisisClean, dataReturned: findingFrac(r) };
+}
+
+function finalize() {
+  const r = S.run, m = S.mission, c = r.c, R = liveR(r), frac = R.dataReturned;
+  let sci = 0;
+  for (const f of r.finds) {
+    let pts = f.pts * (f.mult == null ? 1 : f.mult) * r.sciMult * c.duty;
+    if (f.inst === 'sampler') pts *= m.needReturn && !r.capsuleLanded ? 0 : 1;   // samples count only if they get home
+    else pts *= frac;
+    sci += pts;
+  }
+  const lab = m.sampleLab && r.tagOk && r.capsuleLanded ? m.sampleLab.pts : 0;
+  const science = Math.round(sci + lab + r.bonusSci);
+  const objectives = m.objectives.map(o => ({ id: o.id, text: o.text, ok: !!o.check(R) }));
+  const stars = objectives.filter(o => o.ok).length;
+  const piloting = Object.values(r.scores).reduce((s, x) => s + x, 0);
+  const dataPts = Math.round(frac * 50);
+  const left = c.budgetLeft - r.extraCost;
+  const budgetPts = isFinite(c.budget) ? clamp(Math.round(left / c.budget * 400), 0, 100) : 0;
+  const goalPts = objectives.some(o => o.ok && o.id === r.plan.goal) ? 100 : 0;
+  const total = science + stars * 100 + piloting + dataPts + budgetPts + goalPts;
+  r.result = { science, lab, stars, objectives, piloting, dataPts, budgetPts, goalPts, total, frac };
+
+  const prev = S.campaign.done[m.id];
+  const best = !prev || total > prev.score;
+  S.campaign.done[m.id] = { score: Math.max(total, prev ? prev.score : 0), stars: Math.max(stars, prev ? prev.stars : 0), diff: S.difficulty };
+  if (stars > 0) S.campaign.unlocked = Math.max(S.campaign.unlocked, Math.min(MISSIONS.length, m.num + 1));
+  r.result.best = best;
+  boardAdd({ n: S.myName || 'Crew', m: m.id, s: total, st: stars, d: S.difficulty, t: Date.now() });
+  saveCampaign();
+  go('report');
+}
+
+const OBJ_HINTS = {
+  regions: 'Visit three different sites with a camera. A low tilted orbit only sees the tropics, which is fine here.',
+  climate: 'Carry the infrared spectrometer and scan two different sites.',
+  poles: 'Only a polar orbit flies over the ice sheets. Pair it with a camera or the infrared spectrometer.',
+  signal: 'Carry the radio receiver, or land the lander on the far side.',
+  water: 'Look where water hides: dark polar craters, clays and buried ice. Infrared, radar or a lander can find it.',
+  land: 'Bring the lander and fly it down gently. Use your retries.',
+  tag: 'Bring the sample arm and touch down on smooth ground.',
+  home: 'Bring a capsule, keep enough fuel for the trip home, and hold the reentry corridor.',
+  ice: 'Ground-penetrating radar over Arcadia or the south pole finds buried ice. So does a lander at Arcadia.',
+  storm: 'An RTG, the big battery or a fuel cell keeps the spacecraft running in the dark.',
+  habit: 'Each clue needs a different instrument. Mix cameras, radar, the magnetometer, spectrometers and a lander.'
+};
+
+function analysis(r) {
+  const c = r.c, out = [], res = r.result;
+  if (res.frac < 0.9) out.push(`Only ${fmtPct(res.frac)} of your data reached Earth. A bigger dish or more ground-station time would have doubled the value of what you found.`);
+  if (c.duty < 0.99) out.push(`Power was short, so instruments ran only ${fmtPct(c.duty)} of the time. More solar area or an RTG would fix that.`);
+  if (r.passesLeft > 0) out.push(`You finished with ${plural(r.passesLeft, 'science pass')} unused. Every pass is a chance for another discovery.`);
+  if (r.broken.length) out.push(`Debris broke ${plural(r.broken.length, 'part')} on the way. A debris shield, or smaller solar wings, would help.`);
+  if (isFinite(c.budget) && c.budgetLeft > c.budget * 0.35) out.push(`You had ${fmtM(c.budgetLeft)} left over. Spending some on another instrument or a better antenna could earn more science.`);
+  if (!out.length) out.push('A well-balanced mission. Try a harder difficulty, or a different prime goal.');
+  return out;
+}
+
+// ---------- report and finale ----------
+SCREENS.report = {
+  html() {
+    const r = S.run, m = S.mission, res = r.result;
+    if (!res) return '<p>No report yet.</p>';
+    const next = MISSIONS[m.num];
+    const reals = REAL_MISSIONS.filter(x => { try { return x.match({ m, d: derive(r.build), plan: r.plan }); } catch (e) { return false; } });
+    const row = (k, v, note) => `<tr><td>${k}${note ? `<br><span class="small muted">${note}</span>` : ''}</td><td class="mono">${v}</td></tr>`;
+    return `<div class="narrow"><div class="eyebrow">Step 5 · Mission report</div><h2>${FACES.planet[m.planet]} ${esc(m.name)}: ${res.stars ? 'mission complete' : 'mission over'}</h2>
+      <div class="card report-top"><div class="bigstars">${starsHtml(res.stars)}</div><div class="total mono">${res.total} pts</div>
+        ${res.best ? '<span class="pill">New best!</span>' : ''}</div>
+      ${res.stars ? `<div class="dialog">${m.outro.map(([w, t]) => crewLine(w, t)).join('')}</div>` : `<div class="dialog">${crewLine('ollie', 'No stars this time, but every crash is data. Read the hints below and try again.')}</div>`}
+      <div class="card"><h3>⭐ Objectives</h3><ul class="objlist">${res.objectives.map(o => `<li class="${o.ok ? 'good' : 'bad'}">${o.ok ? '★' : '☆'} ${esc(o.text)}${o.id === r.plan.goal ? ' <span class="pill">Prime goal</span>' : ''}
+        ${o.ok ? '' : `<br><span class="small muted">Hint: ${esc(OBJ_HINTS[o.id] || GOAL_NEEDS[o.id].why)}</span>`}</li>`).join('')}</ul></div>
+      <div class="card"><h3>🧮 Score</h3><table class="score">
+        ${row('Science', res.science, `${plural(r.finds.length, 'discovery')} × ${fmtPct(res.frac)} of data home${res.lab ? ' + lab bonus ' + res.lab : ''}`)}
+        ${row('Objectives', res.stars * 100, '100 per star')}
+        ${row('Piloting', res.piloting, Object.entries(r.scores).map(([k, v]) => GAMES[k].title + ' ' + v).join(' · '))}
+        ${row('Data home', res.dataPts, 'up to 50')}
+        ${row('Budget left', res.budgetPts, isFinite(r.c.budget) ? fmtM(r.c.budgetLeft - r.extraCost) + ' unspent' : 'Sandbox')}
+        ${row('Prime goal', res.goalPts, res.goalPts ? 'met' : 'missed')}
+        <tr class="tot"><td>Total</td><td class="mono">${res.total}</td></tr></table></div>
+      <div class="card"><h3>💡 What to try next</h3><ul>${analysis(r).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>
+      <div class="card"><h3>📜 What happened</h3>${logHtml(r.log)}</div>
+      ${reals.length ? `<div class="card"><h3>🛰️ Real missions like yours</h3>${reals.map(x => `<p><b>${esc(x.name)}</b> <span class="small muted">(launched ${x.year})</span><br>${esc(x.fact)}</p>`).join('')}</div>` : ''}
+      <div class="card"><h3>🏆 Leaderboard: ${esc(m.name)}</h3>${boardHtml(m.id)}</div>
+      <div class="row gap wrap end"><button class="btn ghost" data-act="toMap">Mission control</button><button class="btn ghost" data-act="retryMission">Fly it again</button>
+        ${m.num === 5 && res.stars ? '<button class="btn primary" data-act="toFinale">🎉 The finale</button>' : next && res.stars ? `<button class="btn primary" data-act="nextMission">Next: ${esc(next.name)} →</button>` : ''}</div></div>`;
+  }
+};
+
+SCREENS.finale = {
+  html() {
+    const total = MISSIONS.reduce((s, m) => s + ((S.campaign.done[m.id] || {}).score || 0), 0);
+    return `<div class="narrow"><div class="card finale"><div class="eyebrow">Campaign complete</div><h1 class="game-title">The last signal, answered</h1>
+      <p class="lede">Five missions, from a little Earth satellite to an ocean world 1.4 billion km away.</p>
+      <div class="dialog">${MISSIONS[4].outro.map(([w, t]) => crewLine(w, t)).join('')}</div>
+      <p class="mono">${totalStars()} / 15 stars · ${total} points across the campaign</p>
+      <p class="muted">Want more? Try every prime goal, a harder difficulty, or Sandbox with every part unlocked.</p>
+      <div class="row gap end wrap"><button class="btn ghost" data-act="toSetup">Change difficulty</button><button class="btn primary" data-act="toMap">Mission control</button></div></div></div>`;
+  }
+};
+
+// ---------- leaderboard (this device only) ----------
+const BOARD_KEY = 'ceruvia-board-v2';
+function boardLoad() { try { const b = JSON.parse(store.get(BOARD_KEY) || '[]'); return Array.isArray(b) ? b : []; } catch (e) { return []; } }
+function boardAdd(e) { const b = boardLoad(); b.push(e); b.sort((a, x) => x.s - a.s); store.set(BOARD_KEY, JSON.stringify(b.slice(0, 60))); }
+function boardHtml(missionId) {
+  const list = boardLoad().filter(e => !missionId || e.m === missionId).slice(0, 8);
+  if (!list.length) return '<p class="small muted">No flights yet. Yours will be the first.</p>';
+  return `<table class="board">${list.map((e, i) => { const m = MISSIONS.find(x => x.id === e.m);
+    return `<tr><td>${i + 1}</td><td>${esc(e.n)}</td>${missionId ? '' : `<td class="small">${m ? esc(m.name) : ''}</td>`}<td>${starsHtml(e.st)}</td><td class="mono">${e.s}</td><td class="small muted">${DIFF[e.d] ? esc(DIFF[e.d].label) : ''}</td></tr>`; }).join('')}</table>`;
+}
+
+// ---------- design codes ----------
+function b64urlEncode(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64urlDecode(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
+function encodeDesign() {
+  const p = S.plan;
+  return 'LS1-' + b64urlEncode(JSON.stringify({ m: S.mission.id, b: S.build.bus, s: S.build.slots,
+    p: { lv: p.lv, traj: p.traj, orbit: p.orbit, fuel: Math.round(p.fuel), opsMonths: p.opsMonths, ground: p.ground } }));
+}
+function decodeDesign(code) {
+  try {
+    const o = JSON.parse(b64urlDecode(String(code).trim().replace(/^LS1-/, '')));
+    const m = MISSIONS.find(x => x.id === o.m);
+    if (!m || !BUSES[o.b]) return null;
+    const build = emptyBuild(o.b);
+    for (const t of SLOT_TYPES) (o.s[t] || []).slice(0, build.slots[t].length).forEach((id, i) => {
+      if (id && PARTS[id] && PARTS[id].slot === t) build.slots[t][i] = id;
+    });
+    const p = o.p || {};
+    const plan = Object.assign(defaultPlan(m), {
+      lv: LAUNCHERS[p.lv] ? p.lv : 'condor', traj: m.trajs[p.traj] ? p.traj : Object.keys(m.trajs)[0],
+      orbit: m.orbits[p.orbit] ? p.orbit : Object.keys(m.orbits)[0], fuel: clamp(+p.fuel || 0, 0, FUEL_CAP),
+      opsMonths: clamp(+p.opsMonths || m.ops[2], m.ops[0], m.ops[1]), ground: GROUND[p.ground] ? p.ground : 'network', manualFuel: true });
+    return { m, build, plan };
+  } catch (e) { return null; }
+}
+
+// ---------- actions ----------
+const ACT = {
+  closeModal() { closeModal(); },
+  modalNext() { const cb = modalCb; closeModal(); if (cb) cb(); },
+  eventChoice(i) {
+    if (!pendingEvent) return;
+    const { ev, next } = pendingEvent; pendingEvent = null;
+    closeModal();
+    eventOutcome(ev, ev.choices[+i].apply(S.run), next);
+  },
+  home() { go('title'); },
+  toggleMute() { SFX.toggle(); renderTopbar(); },
+  openHandbook() { const d = $('#drawer'); d.innerHTML = handbookHtml(); d.hidden = false; const b = d.querySelector('button'); if (b) b.focus(); },
+  closeHandbook() { const d = $('#drawer'); d.hidden = true; d.innerHTML = ''; },
+  explain(k) { const e = EXPLAIN[k]; showModal(`<h3>${e.icon} ${e.title}</h3><p>${e.text}</p><p class="small"><b>Tip:</b> ${e.fix}</p><div class="row end"><button class="btn primary" data-act="closeModal">Got it</button></div>`); },
+
+  // title, setup, map
+  newGame() { if (hasProgress()) confirmModal('Start a new campaign?', 'This clears your stars and saved designs on this device. The leaderboard stays.', 'confirmNew', 'Start over'); else go('setup'); },
+  confirmNew() { closeModal(); S.campaign = { done: {}, unlocked: 1 }; S.builds = {}; S.trades = {}; saveCampaign(); go('setup'); },
+  continueGame() { go('map'); },
+  setDiff(k) { if (!DIFF[k]) return; S.difficulty = k; saveCampaign(); rerender(); },
+  startCampaign() { saveCampaign(); go('map'); },
+  toSetup() { go('setup'); },
+  toMap() { if (S.screen === 'hangar') saveBuild(); go('map'); },
+  pickMission(id) {
+    const m = MISSIONS.find(x => x.id === id);
+    if (!m) return;
+    if (!isUnlockedMission(m)) { SFX.deny(); toast('Earn a star on mission ' + (m.num - 1) + ' first.'); return; }
+    prepareMission(m); go('briefing');
+  },
+  resetSave() { confirmModal('Reset all progress?', 'This deletes your stars, saved designs and leaderboard on this device.', 'confirmReset', 'Reset'); },
+  confirmReset() { closeModal(); store.del(SAVE_KEY); store.del(BOARD_KEY); S.campaign = { done: {}, unlocked: 1 }; S.builds = {}; S.trades = {}; go('title'); },
+  toFinale() { go('finale'); },
+
+  // briefing and goal
+  dlgNext() { S.dlg++; rerender(); },
+  dlgSkip() { S.dlg = S.mission.intro.length - 1; rerender(); },
+  toGoal() { go('goal'); },
+  setGoal(id) {
+    if (!canAct('lead')) { toast(waitFor('lead') + '.'); return; }
+    S.plan.goal = id; syncFuel(); saveBuild(); go('hangar');
+  },
+  toHangar() { go('hangar'); },
+
+  // hangar
+  tab(k) { S.hangarTab = k; rerender(); },
+  tapPart(id) { autoPlace(id); },
+  removePart(arg) { const [t, i] = arg.split(':'); removePart(t, +i); },
+  setBus(k) {
+    if (!busUnlocked(k, S.mission, S.difficulty) || S.build.bus === k) return;
+    const dropped = resizeBuild(S.build, k);
+    if (dropped.length) toast('Removed to fit: ' + dropped.map(id => PARTS[id].short).join(', '));
+    syncFuel(); saveBuild(); refreshHangar(true);
+  },
+  toggleAdv() { S.showAdv = !S.showAdv; refreshHangar(); },
+  autoBuild() {
+    if (allParts(S.build).length) confirmModal('Use Auto-build?', 'This replaces your current design with a simple one that passes the review and meets your prime goal. You can change it afterwards.', 'doAutoBuild', 'Auto-build');
+    else ACT.doAutoBuild();
+  },
+  doAutoBuild() {
+    closeModal();
+    const r = recommendBuild(S.mission, S.plan.goal, S.difficulty, bonusBudget());
+    if (!r) { toast('No simple design fits this goal. Try another goal.'); return; }
+    S.build = r.build;
+    S.plan = Object.assign({}, r.plan, { goal: S.plan.goal, manualFuel: false });
+    saveBuild(); rerender();
+    toast('Auto-build done. Now make it your own!');
+  },
+  setLv(k) { if (!canAct('lead') || !LAUNCHERS[k]) return; S.plan.lv = k; syncFuel(); saveBuild(); rerender(); },
+  setOrbit(k) { if (!canAct('lead') || !S.mission.orbits[k]) return; S.plan.orbit = k; syncFuel(); saveBuild(); rerender(); },
+  setGround(k) { if (!canAct('lead') || !GROUND[k]) return; S.plan.ground = k; saveBuild(); rerender(); },
+  setTraj(k) { if (!canAct('lead') || !S.mission.trajs[k]) return; S.plan.traj = k; syncFuel(); saveBuild(); rerender(); },
+  fillFuel() { if (!canAct('prop')) return; S.plan.fuel = autoFuel(S.build, S.plan, S.mission, S.difficulty, bonusBudget()); saveBuild(); rerender(); },
+  toReview() { saveBuild(); go('review'); },
+  shareCode() {
+    showModal(`<h3>Design code</h3><p class="small muted">Copy this and send it to a friend. They can load it from Mission control.</p>
+      <textarea class="code" readonly rows="4" id="codeOut">${esc(encodeDesign())}</textarea>
+      <div class="row gap end"><button class="btn ghost" data-act="closeModal">Close</button><button class="btn primary" data-act="copyCode">Copy</button></div>`);
+  },
+  copyCode() {
+    const t = $('#codeOut'); if (!t) return;
+    t.select();
+    const done = () => toast('Copied!');
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value).then(done, () => { document.execCommand('copy'); done(); });
+    else { document.execCommand('copy'); done(); }
+  },
+  loadCode() {
+    showModal(`<h3>Load a design code</h3><textarea class="code" rows="4" id="codeIn" placeholder="LS1-..." aria-label="Design code"></textarea>
+      <div class="row gap end"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" data-act="applyCode">Load</button></div>`);
+  },
+  applyCode() {
+    const t = $('#codeIn'), d = t && decodeDesign(t.value);
+    if (!d) { toast("That code doesn't look right."); return; }
+    if (!isUnlockedMission(d.m)) { toast('That design is for a mission you have not unlocked yet.'); return; }
+    closeModal();
+    const goal = S.mission === d.m && S.plan ? S.plan.goal : null;
+    prepareMission(d.m);
+    S.build = d.build; S.plan = Object.assign(d.plan, { goal });
+    for (const id of allParts(S.build)) if (!isUnlocked(id, d.m, S.difficulty)) S.build.slots[PARTS[id].slot] = S.build.slots[PARTS[id].slot].map(x => x === id ? null : x);
+    saveBuild();
+    go(goal ? 'hangar' : 'goal');
+    toast('Design loaded.');
+  },
+
+  // review and flight
+  launch() {
+    const c = C();
+    if (review(S.build, S.plan, S.mission, c).some(i => i.level === 'block')) { SFX.deny(); toast('Fix the red items first.'); return; }
+    startRun();
+  },
+  gameGo() { gameBegin(); },
+  gameRetry() { if (S.retriesLeft <= 0 || !S.game) return; S.retriesLeft--; S.game.phase = 'intro'; S.game.result = null; S.game.state = null; rerender(); },
+  gameDone() { const g = S.game; if (!g || !g.result) return; S.game = null; g.onDone(g.result); },
+
+  // exploring
+  selSite(id) { S.selSite = id; rerender(); },
+  pass() { if (!canAct('sci')) return; doPass(S.selSite); },
+  land() { if (!canAct('sci')) return; runStep('doLanding', S.selSite); },
+  tag() { if (!canAct('sci')) return; runStep('doTag', S.selSite); },
+  finishExplore() {
+    if (!canAct('lead')) return;
+    if (S.run.passesLeft > 0) confirmModal('Finish science?', `You still have ${plural(S.run.passesLeft, 'science pass')}. Unused passes are wasted.`, 'confirmFinish', 'Finish anyway');
+    else finishExplore();
+  },
+  confirmFinish() { closeModal(); finishExplore(); },
+  crisisDone() { if (!canAct('pwr')) return; resolveCrisisAuto(); finishExplore(); },
+
+  // report
+  retryMission() { prepareMission(S.mission); go('hangar'); },
+  nextMission() { const n = MISSIONS[S.mission.num]; if (n) { prepareMission(n); go('briefing'); } }
+};
+
+// ---------- inputs ----------
+const INPUT = {
+  myName(v) { S.myName = v.slice(0, 16); store.set('ceruvia-myname', S.myName); },
+  fuel(v, el, done) {
+    if (!canAct('prop')) return;
+    S.plan.fuel = clamp(+v || 0, 0, FUEL_CAP); S.plan.manualFuel = true;
+    const t = $('#fuelVal'); if (t) t.textContent = fmtKg(S.plan.fuel);
+    const mt = $('#meters'); if (mt) mt.innerHTML = metersHtml(C());
+    if (done) { saveBuild(); refreshHangar(); }
+  },
+  opsMonths(v, el, done) {
+    if (!canAct('lead')) return;
+    S.plan.opsMonths = clamp(Math.round(+v), S.mission.ops[0], S.mission.ops[1]);
+    const c = C(), t = $('#opsVal'); if (t) t.textContent = S.plan.opsMonths + ' months · ' + plural(c.passes, 'pass');
+    const mt = $('#meters'); if (mt) mt.innerHTML = metersHtml(c);
+    if (done) { saveBuild(); refreshHangar(); }
+  }
+};
+
+// ---------- global listeners ----------
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) {
+    const m = $('#modal');
+    if (e.target === m && !m.dataset.locked) closeModal();
+    return;
+  }
+  if (el.disabled || el.getAttribute('aria-disabled') === 'true' && el.dataset.act !== 'pickMission') return;
+  SFX.unlock();
+  const fn = ACT[el.dataset.act];
+  if (fn) { e.preventDefault(); SFX.click(); fn(el.dataset.arg, el, e); }
+});
+document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k && INPUT[k]) INPUT[k](e.target.value, e.target, false); });
+document.addEventListener('change', e => { const k = e.target.dataset && e.target.dataset.input; if (k && INPUT[k]) INPUT[k](e.target.value, e.target, true); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const d = $('#drawer'), m = $('#modal');
+  if (!d.hidden) ACT.closeHandbook();
+  else if (!m.hidden && !m.dataset.locked) closeModal();
+});
+
+SCREENS.game = SCREENS_GAME;
+
+// ---------- start ----------
+loadCampaign();
+S.myName = store.get('ceruvia-myname') || '';
+render();

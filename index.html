@@ -4,24 +4,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Design and fly science missions, from Earth orbit to an icy moon with a fading signal.">
 <meta name="ai-assistance" content="Code, in-game text and synthesized audio written with the help of Claude (Anthropic), directed and reviewed by the team. No AI-generated images.">
+<meta name="theme-color" content="#0b1030">
 <title>Last Signal from Ceruvia</title>
-<style>body{background:#0b1030;color:#eef;font-family:system-ui,sans-serif;padding:16px}</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main id="app"><h1>Last Signal from Ceruvia</h1><p id="status">Loading data…</p></main>
+<header id="topbar" class="topbar"></header>
+<main id="app" class="app" aria-live="polite"></main>
+<div id="modal" class="modal-wrap" hidden></div>
+<aside id="drawer" class="drawer" hidden aria-label="Handbook"></aside>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<noscript><p>This game needs JavaScript.</p></noscript>
 <script src="js/data.js"></script>
 <script src="js/sim.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/fx.js"></script>
 <script src="js/builder.js"></script>
-<script>
-  // Temporary check page; replaced by the real shell in step 3.
-  // Minimal stand-ins so the console snippets in TESTING.md run now.
-  var S = { difficulty: 'rookie', mission: null, build: null, plan: null };
-  function prepareMission(m) { S.mission = m; S.build = emptyBuild('medium'); S.plan = defaultPlan(m); }
-  function C() { return calc(S.build, S.plan, S.mission, S.difficulty, 0); }
-  document.getElementById('status').textContent =
-    MISSIONS.length + ' missions, ' + Object.keys(PARTS).length + ' parts, ' +
-    Object.keys(LAUNCHERS).length + ' rockets, ' + EVENTS.length + ' events loaded.';
-</script>
+<script src="js/minigames.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>
