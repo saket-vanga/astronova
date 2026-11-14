@@ -313,3 +313,4 @@ function fmtM(x) { return isFinite(x) ? '$' + Math.round(x).toLocaleString('en-U
 function fmtPct(x) { return Math.round(x * 100) + '%'; }
 function fmtMb(x) { return x >= 1000 ? (x / 1000).toFixed(1) + ' Gb' : Math.round(x) + ' Mb'; }
 function fmtGb(x) { return x >= 1000 ? (x / 1000).toFixed(1) + ' Tb' : Math.round(x) + ' Gb'; }
+function fmtYears(y) { return y < 0.1 ? Math.max(1, Math.round(y * 365)) + ' days' : y.toFixed(1) + ' yr'; }

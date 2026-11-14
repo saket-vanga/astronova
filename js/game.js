@@ -258,7 +258,7 @@ SCREENS.goal = {
   }
 };
 
-SCREENS.hangar = { html() { return hangarHtml(); } };
+SCREENS.hangar = { html() { return hangarHtml(); }, after() { hangarAfter(); } };
 
 // ---------- launch review ----------
 SCREENS.review = {
@@ -274,10 +274,10 @@ SCREENS.review = {
         ${list.map(i => `<div class="ritem ${i.level}"><span class="ricon" aria-hidden="true">${icon[i.level]}</span><div><b>${esc(i.title)}</b><p class="small">${esc(i.why)}</p></div></div>`).join('')}</div>`;
     }).join('');
     const dev = devYears(c);
-    return `<div class="narrow"><div class="eyebrow">Step 3 · Launch review</div><h2>Is ${esc(S.shipName || 'your spacecraft')} ready to fly?</h2>
+    return `<div class="narrow"><div class="eyebrow">Step 3 · Launch review</div><div class="row gap">${patchImg('big')}<h2>Is ${esc(S.shipName || 'your spacecraft')} ready to fly?</h2></div>
       <div class="card summary ${blocks.length ? 'bad' : warns.length ? 'warn' : 'ok'}">
         <b>${blocks.length ? `${plural(blocks.length, 'problem')} must be fixed before launch.` : warns.length ? `Cleared to launch, with ${plural(warns.length, 'risk')}.` : 'All green. Cleared to launch!'}</b>
-        <p class="small">Plan: ${dev.toFixed(1)} years to build and test, ${c.cruise ? c.cruise.toFixed(1) + ' years of cruise, ' : ''}${S.plan.opsMonths} months of science (${plural(c.passes, 'pass')})${m.needReturn ? ', then the trip home' : ''}.</p></div>
+        <p class="small">Plan: ${dev.toFixed(1)} years to build and test, ${c.cruise ? fmtYears(c.cruise).replace(' yr', ' years') + ' of cruise, ' : ''}${S.plan.opsMonths} months of science (${plural(c.passes, 'pass')})${m.needReturn ? ', then the trip home' : ''}.</p></div>
       ${segs}
       <div class="row between wrap"><button class="btn ghost" data-act="toHangar">← Back to the hangar</button>
         <button class="btn primary big" data-act="launch"${blocks.length ? ' disabled' : ''}>🚀 Launch!</button></div></div>`;
@@ -663,7 +663,7 @@ SCREENS.report = {
     const reals = REAL_MISSIONS.filter(x => { try { return x.match({ m, d: derive(r.build), plan: r.plan }); } catch (e) { return false; } });
     const row = (k, v, note) => `<tr><td>${k}${note ? `<br><span class="small muted">${note}</span>` : ''}</td><td class="mono">${v}</td></tr>`;
     return `<div class="narrow"><div class="eyebrow">Step 5 · Mission report</div><h2>${FACES.planet[m.planet]} ${esc(m.name)}: ${res.stars ? 'mission complete' : 'mission over'}</h2>
-      <div class="card report-top"><div class="bigstars">${starsHtml(res.stars)}</div><div class="total mono">${res.total} pts</div>
+      <div class="card report-top">${S.patch ? patchImg('big') : ''}<div class="bigstars">${starsHtml(res.stars)}</div><div class="total mono">${res.total} pts</div>
         ${res.best ? '<span class="pill">New best!</span>' : ''}</div>
       ${res.stars ? `<div class="dialog">${m.outro.map(([w, t]) => crewLine(w, t)).join('')}</div>` : `<div class="dialog">${crewLine('ollie', 'No stars this time, but every crash is data. Read the hints below and try again.')}</div>`}
       <div class="card"><h3>⭐ Objectives</h3><ul class="objlist">${res.objectives.map(o => `<li class="${o.ok ? 'good' : 'bad'}">${o.ok ? '★' : '☆'} ${esc(o.text)}${o.id === r.plan.goal ? ' <span class="pill">Prime goal</span>' : ''}
@@ -789,6 +789,16 @@ const ACT = {
     syncFuel(); saveBuild(); refreshHangar(true);
   },
   toggleAdv() { S.showAdv = !S.showAdv; refreshHangar(); },
+  setPaint(k) { if (!PAINTS.some(p => p.id === k)) return; S.paint = k; savePatch(); saveCampaign(); rerender(); },
+  patchTool(k) { PATCH.tool = k; rerender(); },
+  patchColor(c) { PATCH.color = c; if (PATCH.tool === 'eraser' || PATCH.tool === 'stamp') PATCH.tool = 'brush'; rerender(); },
+  patchSize(n) { PATCH.size = +n; rerender(); },
+  patchStamp(s) { PATCH.stamp = s; PATCH.tool = 'stamp'; rerender(); },
+  patchUndo() { patchUndo(); },
+  patchClear() { patchClear(); },
+  tradeSave() { tradeSave(); },
+  tradeLoad(i) { tradeLoad(i); },
+  tradeDel(i) { tradeDel(i); },
   autoBuild() {
     if (allParts(S.build).length) confirmModal('Use Auto-build?', 'This replaces your current design with a simple one that passes the review and meets your prime goal. You can change it afterwards.', 'doAutoBuild', 'Auto-build');
     else ACT.doAutoBuild();
@@ -869,6 +879,7 @@ const ACT = {
 // ---------- inputs ----------
 const INPUT = {
   myName(v) { S.myName = v.slice(0, 16); store.set('ceruvia-myname', S.myName); },
+  shipName(v, el, done) { S.shipName = v.slice(0, 20); drawRing(); if (done) { savePatch(); saveCampaign(); } },
   fuel(v, el, done) {
     if (!canAct('prop')) return;
     S.plan.fuel = clamp(+v || 0, 0, FUEL_CAP); S.plan.manualFuel = true;

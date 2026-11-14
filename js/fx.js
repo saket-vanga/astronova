@@ -14,6 +14,14 @@ const CAT_STYLE = {
   'Landing & return': { color: '#ff8fb8', icon: '🪂' }
 };
 
+const PART_ICON = {
+  chem: '🔥', chemHi: '🔥', ion: '💠', capsule: '🪂', lander: '🛬', sampler: '🦾',
+  solarS: '🔆', solarL: '🔆', solarX: '🔆', rtg: '☢️', batS: '🔋', batL: '🔋', fuelcell: '🧪',
+  lga: '📶', mga: '📡', hga: '📡', ka: '📡', compStd: '💻', compRad: '💻', adcsBasic: '🎯', adcsPrecise: '🎯',
+  rec32: '💾', rec256: '💾', rec2t: '💾', shield: '🛡️',
+  wac: '📷', hirc: '🔭', irs: '🌈', mag: '🧲', sig: '📻', radar: '〰️', mspec: '👃'
+};
+
 const FACES = {
   planet: { earth: '🌍', moon: '🌕', asteroid: '🪨', mars: '🔴', ceruvia: '🧊' },
   crew: { vega: '👩🏽‍✈️', hale: '👩🏿‍🔬', ollie: '🧑🏻‍🚀' }
