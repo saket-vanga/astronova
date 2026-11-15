@@ -465,3 +465,41 @@ h3, h4 { font-family: var(--round); font-weight: 800; }
   .hero { width: 150px; height: 150px; } .hero-planet { inset: 20px; width: 110px; height: 110px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- challenge resources: phase bar, ConOps timeline, trajectory ---------- */
+.mphases { max-width: 860px; margin: 0 auto 10px; }
+.mphases ol { list-style: none; display: flex; gap: 4px; margin: 0; padding: 0; }
+.mphases li { flex: 1 1 0; min-width: 0; padding: 6px 8px; background: var(--bg2); border: 1px solid var(--line); text-align: center; line-height: 1.2; }
+.mphases li:first-child { border-radius: 12px 0 0 12px; } .mphases li:last-child { border-radius: 0 12px 12px 0; }
+.mphases b { display: block; font-family: var(--round); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mphases span { display: block; font-size: .68rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mphases li.done { background: var(--card); } .mphases li.done b { color: var(--good); }
+.mphases li.cur { background: var(--accent); border-color: var(--ink); box-shadow: var(--sticker-sm); }
+.mphases li.cur b, .mphases li.cur span { color: var(--ink); }
+.conops-card h3.mt { margin-top: 18px; }
+.cbar { display: flex; gap: 2px; height: 30px; border-radius: 10px; overflow: hidden; border: 2px solid var(--ink); background: var(--bg2); }
+.cseg { flex: 0 0 26px; display: grid; place-items: center; min-width: 26px; background: var(--card2); }
+.cseg i { font-style: normal; font-size: .9rem; }
+.cseg.build { background: var(--violet); } .cseg.cruise { background: var(--blue); } .cseg.sci { background: var(--good); }
+.cscale { display: flex; justify-content: space-between; margin: 3px 2px 8px; }
+.clist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; }
+.clist li { display: flex; gap: 8px; align-items: flex-start; }
+.clist .cicon { flex: none; width: 1.6rem; text-align: center; font-size: 1.1rem; }
+.clist .pill { margin-left: 4px; }
+.traj { margin: 6px 0 0; }
+.traj svg { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; background: radial-gradient(ellipse at center, #18205a, var(--bg) 75%); border-radius: 14px; border: 1px solid var(--line); }
+.traj figcaption { margin-top: 6px; }
+.traj .torbit { fill: none; stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 3 4; }
+.traj .tpath { fill: none; stroke: var(--accent2); stroke-width: 2.5; stroke-linecap: round; }
+.traj .tpath.thin { stroke-width: 1.4; }
+.traj .tret { fill: none; stroke: var(--pink); stroke-width: 2; stroke-dasharray: 6 4; }
+.traj .tship { fill: var(--accent); stroke: var(--ink); stroke-width: 1.5; }
+.traj .tlabel { fill: var(--muted); font: 600 10px var(--font); }
+.traj .tlabel.strong { fill: var(--ink); font-weight: 800; }
+.links li { margin-bottom: 10px; }
+@media (max-width: 720px) {
+  .mphases li { padding: 5px 3px; }
+  .mphases b { font-size: .72rem; }
+  .mphases li:not(.cur) span { display: none; }
+  .mphases li.cur { flex-grow: 2.2; }
+}

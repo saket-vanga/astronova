@@ -589,7 +589,7 @@ function compareHtml() {
   }).join('');
   const head = cols.map(col => `<th>${esc(col.name)}${col.cur ? '' : `<div class="row gap"><button class="btn small ghost" data-act="tradeLoad" data-arg="${col.i}">Load</button><button class="btn small ghost" data-act="tradeDel" data-arg="${col.i}" aria-label="Delete ${esc(col.name)}">✕</button></div>`}</th>`).join('');
   return `<div class="card"><h3>⚖️ Trade study</h3>
-    <p class="small muted">Real teams compare several designs before choosing one. Save up to three versions of your spacecraft and see which is best at what. The best value in each row is highlighted.</p>
+    <p class="small muted">Real teams compare several designs before choosing one. At NASA Goddard's Mission Design Lab, engineers do exactly this in a few days. Save up to three versions of your spacecraft and see which is best at what. The best value in each row is highlighted.</p>
     <div class="tablewrap"><table class="compare"><thead><tr><th></th>${head}</tr></thead><tbody>${body}</tbody></table></div>
     <div class="row end"><button class="btn primary" data-act="tradeSave"${list.length >= 3 ? ' disabled' : ''}>💾 Save current design${list.length >= 3 ? ' (3 saved)' : ''}</button></div></div>`;
 }
@@ -847,4 +847,99 @@ function endTour(silent) {
   tourState = null;
   const el = document.getElementById('tour'); if (el) el.remove();
   if (!silent) store.set('ceruvia-tour', '1');
+}
+
+// ---------- challenge resources: phase bar, ConOps timeline, trajectory diagram ----------
+// Phase bar with JPL Concept Maturity Level labels. Shown on the planning screens.
+function phaseBar() {
+  const cur = PHASES.findIndex(p => p.screens.includes(S.screen));
+  if (cur < 0) return '';
+  return `<nav class="mphases" aria-label="Mission phase" title="CML means Concept Maturity Level, a JPL scale for how far a mission idea has grown.">
+    <ol>${PHASES.map((p, i) => `<li class="${i < cur ? 'done' : i === cur ? 'cur' : ''}"${i === cur ? ' aria-current="step"' : ''}>
+      <b>${i < cur ? '✓ ' : ''}${p.label}</b><span>${p.cml}</span></li>`).join('')}</ol></nav>`;
+}
+
+// A duration in years as days, months or years.
+function fmtDur(y) {
+  if (y < 1 / 12) return plural(Math.max(1, Math.round(y * 365)), 'day');
+  if (y < 1.5) return plural(Math.max(1, Math.round(y * 12)), 'month');
+  return `${y.toFixed(1)} years`;
+}
+
+// Concept of operations: every stage from build-and-test to the end, as a bar plus a list.
+function conopsHtml(c, m, plan) {
+  const d = c.d, steps = [];
+  const add = (icon, name, dur, note, phase, cls) => steps.push({ icon, name, dur, note, phase, cls });
+  add('🔧', 'Build and test', devYears(c), 'Assemble the spacecraft, shake it, bake it, check every part.', 'Phase C–D', 'build');
+  add('🚀', 'Launch', 0, `On a ${c.lv.name}.`, 'Phase D', 'launch');
+  if (c.cruise > 0) add('🛰️', 'Cruise', c.cruise, `${c.traj.name}.${m.hazard ? ' Watch for debris.' : ''}`, 'Phase E', 'cruise');
+  if (m.minigames.includes('insertion')) add('🔥', 'Arrive', 0, `Braking burn into ${c.orbit.name.toLowerCase()}.`, 'Phase E', 'launch');
+  add('🔬', 'Science', plan.opsMonths / 12, `${plan.opsMonths} months, ${plural(c.passes, 'science pass')}.`, 'Phase E', 'sci');
+  if (d.lander) add('🪂', 'Landing', 0, 'The lander flies down to the surface.', 'Phase E', 'launch');
+  if (m.minigames.includes('tag') && d.sampler) add('🪨', 'Touch-and-go', 0, 'Grab a sample from the surface.', 'Phase E', 'launch');
+  if (m.crisis) add('⚡', m.crisis ? m.crisis.name : 'Power emergency', 0, 'Keep the spacecraft alive.', 'Phase E', 'launch');
+  if (m.needReturn) {
+    add('🏠', 'Trip home', c.cruise, 'Departure burn, then the long way back.', 'Phase E', 'cruise');
+    add('🪂', 'Reentry', 0, 'The capsule lands on Earth.', 'Phase E', 'launch');
+  }
+  add('📊', 'Report', 0, 'Scientists study the data for years.', 'Phase F', 'launch');
+  const total = steps.reduce((s, x) => s + x.dur, 0);
+  const bar = steps.map(x => `<span class="cseg ${x.cls}" style="flex-grow:${x.dur ? Math.max(x.dur, total * 0.02).toFixed(3) : 0}" title="${esc(x.name)}"><i aria-hidden="true">${x.icon}</i></span>`).join('');
+  const list = steps.map(x => `<li><span class="cicon" aria-hidden="true">${x.icon}</span><div><b>${esc(x.name)}</b>${x.dur ? ` <span class="mono small">${fmtDur(x.dur)}</span>` : ''}
+    <span class="pill">${x.phase}</span><br><span class="small muted">${esc(x.note)}</span></div></li>`).join('');
+  return `<div class="conops"><div class="cbar" role="img" aria-label="Timeline: about ${total.toFixed(1)} years from the start of building to the end of the mission">${bar}</div>
+    <div class="cscale small muted"><span>Start of building</span><span>${total.toFixed(1)} years</span></div>
+    <ol class="clist">${list}</ol></div>`;
+}
+
+// Trajectory diagram, drawn as SVG for the chosen route and orbit. Not to scale.
+const TRAJ_COLOR = { earth: '#4fa3ff', moon: '#cfd3e6', asteroid: '#b8977a', mars: '#e2683c', ceruvia: '#8fe3ff' };
+function trajSvg(m, plan) {
+  const traj = m.trajs[plan.traj] || Object.values(m.trajs)[0], orbit = m.orbits[plan.orbit] || Object.values(m.orbits)[0];
+  const tKey = plan.traj in m.trajs ? plan.traj : Object.keys(m.trajs)[0];
+  const body = (x, y, r, col, name, anchor, dy) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" stroke="var(--ink)" stroke-width="1.5"/>` +
+    (name ? `<text x="${x}" y="${y + (dy || r + 13)}" text-anchor="${anchor || 'middle'}" class="tlabel">${esc(name)}</text>` : '');
+  const ell = (cx, cy, rx, ry, cls, rot) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" class="${cls}"${rot ? ` transform="rotate(${rot} ${cx} ${cy})"` : ''}/>`;
+  let g = '';
+  if (m.planet === 'earth') {
+    const polar = !!orbit.polar;
+    g += ell(160, 100, polar ? 26 : 92, polar ? 82 : 26, 'tpath', polar ? 10 : -14);
+    g += body(160, 100, 34, TRAJ_COLOR.earth, '');
+    g += `<text x="160" y="104" text-anchor="middle" class="tlabel strong">Earth</text>`;
+    g += `<circle cx="${polar ? 165 : 248}" cy="${polar ? 20 : 79}" r="5" class="tship"/>`;
+    g += `<text x="12" y="20" class="tlabel">${esc(orbit.name)}</text>`;
+  } else if (m.planet === 'moon') {
+    g += `<path d="M 40 196 A 230 230 0 0 1 300 30" class="torbit"/>`;
+    g += body(50, 130, 22, TRAJ_COLOR.earth, 'Earth');
+    if (tKey === 'weak') g += `<path d="M 68 118 C 170 -60 360 20 266 76" class="tpath"/><text x="312" y="14" text-anchor="end" class="tlabel">Loop out past the Moon</text>`;
+    else g += `<path d="M 70 120 Q 170 60 262 82" class="tpath"/>`;
+    g += ell(272, 86, 20, 9, 'tpath thin', orbit.polar ? 80 : 0);
+    g += body(272, 86, 10, TRAJ_COLOR.moon, 'Moon', 'middle', 28);
+  } else {
+    // Around the Sun: Earth's orbit on the inside, the target's on the outside, squashed for perspective.
+    const k = 0.6, cx = 165, cy = 96, r1 = 58;
+    const r2 = { asteroid: 96, mars: 112, ceruvia: 136 }[m.planet] || 110;
+    g += ell(cx, cy, r1, r1 * k, 'torbit') + ell(cx, cy, r2, r2 * k, 'torbit');
+    g += `<circle cx="${cx}" cy="${cy}" r="9" fill="var(--accent)"/><text x="${cx}" y="${cy + 22}" text-anchor="middle" class="tlabel">Sun</text>`;
+    const ex = cx - r1, tx = cx + r2, a = (r1 + r2) / 2;
+    if (tKey === 'assist') {
+      const rj = 108;
+      g += ell(cx, cy, rj, rj * k, 'torbit');
+      g += `<path d="M ${ex} ${cy} Q ${ex - 6} ${cy - 70} ${cx} ${cy - rj * k}" class="tpath"/><path d="M ${cx} ${cy - rj * k} Q ${tx - 10} ${cy - rj * k - 20} ${tx} ${cy}" class="tpath"/>`;
+      g += body(cx, cy - rj * k, 7, '#e0b080', 'Jupiter boost', 'middle', -11);
+    } else {
+      g += `<path d="M ${ex} ${cy} A ${a} ${a * k} 0 0 1 ${tx} ${cy}" class="tpath"/>`;
+    }
+    if (tKey === 'flyby') g += ell(cx - 4, cy, r1 + 6, (r1 + 6) * k, 'tpath thin') + `<text x="${cx}" y="${cy + r1 * k + 22}" text-anchor="middle" class="tlabel">1 loop, then Earth flyby</text>`;
+    if (m.needReturn) g += `<path d="M ${tx} ${cy + 4} A ${a} ${a * k} 0 0 1 ${ex} ${cy + 4}" class="tret"/>`;
+    if (tKey === 'aero') g += ell(tx, cy, 18, 9, 'tpath thin') + ell(tx, cy, 13, 6, 'tpath thin') + `<text x="${tx}" y="${cy + 36}" text-anchor="end" class="tlabel">Aerobraking</text>`;
+    else g += ell(tx, cy, 14, 6, 'tpath thin');
+    g += body(ex, cy, 7, TRAJ_COLOR.earth, '') + `<text x="${ex - 11}" y="${cy + 4}" text-anchor="end" class="tlabel">Earth</text>`;
+    g += body(tx, cy, m.planet === 'asteroid' ? 4 : 7, TRAJ_COLOR[m.planet] || '#fff', '') +
+      `<text x="${tx - 10}" y="${cy - 12}" text-anchor="end" class="tlabel">${esc(m.target)}</text>`;
+  }
+  const legend = m.needReturn && m.planet !== 'earth' && m.planet !== 'moon'
+    ? `<line x1="12" y1="190" x2="30" y2="190" class="tpath"/><text x="35" y="193" class="tlabel">Out</text><line x1="64" y1="190" x2="82" y2="190" class="tret"/><text x="87" y="193" class="tlabel">Home</text>` : '';
+  return `<figure class="traj"><svg viewBox="0 0 320 200" role="img" aria-label="${esc(`Trajectory: ${traj.name}, then ${orbit.name}`)}">${g}${legend}</svg>
+    <figcaption class="small"><b>${esc(traj.name)}</b> → ${esc(orbit.name)}. <span class="muted">${esc(traj.desc)} Not to scale.</span></figcaption></figure>`;
 }

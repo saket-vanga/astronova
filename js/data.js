@@ -625,15 +625,32 @@ const REAL_MISSIONS = [
     match: x => x.m.id === 'm5' && x.d.rtg === 0 && x.d.solarKw > 0 }
 ];
 
-// ---------- learn more (challenge resources; URLs are checked in build step 10) ----------
+// ---------- learn more (the challenge resources, and what each one shaped in the game) ----------
 const RESOURCES = [
-  { name: 'NASA: Design and Develop Science Missions', url: 'https://science.nasa.gov/', note: 'How a mission starts from a science goal and is split into launch, space, ground and user segments.' },
-  { name: 'JPL: Concept Maturity Levels', url: 'https://www.jpl.nasa.gov/', note: 'A scale for how grown-up a mission idea is, from a first sketch to a full design.' },
-  { name: 'NASA Goddard: Mission Design Lab', url: 'https://www.nasa.gov/goddard/', note: 'Where engineers sit together for a week and trade one design against another.' },
-  { name: 'NASA: General Mission Analysis Tool (GMAT)', url: 'https://software.nasa.gov/', note: 'Free software that real teams use to plan trajectories.' },
-  { name: 'NASA Webb: Build It Yourself', url: 'https://science.nasa.gov/mission/webb/', note: 'A small game about matching telescope parts to science goals.' },
-  { name: 'NASA: CubeSat 101', url: 'https://www.nasa.gov/', note: 'A guide to building and launching a very small satellite.' },
-  { name: 'Canadian Space Agency: digital games', url: 'https://www.asc-csa.gc.ca/', note: 'Space games and activities for young explorers.' }
+  { name: 'NASA: Design and Develop Science Missions (webinar slides)', url: 'https://ntrs.nasa.gov/citations/20250002492',
+    note: 'How a mission grows from a science question into a design, split into launch, space, ground and user segments.',
+    used: 'You pick the science goal first, choose ground stations, and the launch review is grouped by segment.' },
+  { name: 'JPL: Concept Maturity Levels (Mission Development 101)', url: 'https://science.nasa.gov/wp-content/uploads/2023/11/03-ziemer-mission-development-101-cmls.pdf',
+    note: 'A scale for how grown-up a mission idea is, from a sketch on a napkin (CML 1) to a full point design and beyond.',
+    used: 'The phase bar at the top of the planning screens.' },
+  { name: 'NASA Goddard: Mission Design Lab', url: 'https://etd.gsfc.nasa.gov/capabilities/integrated-design-center/mission-design-lab/',
+    note: 'A room where engineers design a whole mission together in a few days, trading one option against another.',
+    used: 'The Compare tab in the hangar: a trade study of up to three designs.' },
+  { name: 'NASA: General Mission Analysis Tool (GMAT)', url: 'https://software.nasa.gov/software/GSC-19640-1',
+    note: 'Free, open-source software that real teams use to plan orbits and trajectories.',
+    used: 'The rocket equation behind the fuel meter, and the trajectory diagram in the launch review.' },
+  { name: 'NASA: Web-based Mission Visualization (Mission Viz)', url: 'https://nasa.github.io/mission-viz/X3Dom/WebMissionVisualizationTutorialSeries.html',
+    note: 'Tutorials on turning a planned trajectory into a picture anyone can explore in a web browser.',
+    used: 'The concept-of-operations timeline and the trajectory diagram in the launch review.' },
+  { name: 'NASA Webb: For Fun (includes the "Build It Yourself" satellite game)', url: 'https://science.nasa.gov/mission/webb/for-fun/',
+    note: 'Choose what your telescope should study, then pick the instruments and optics to match.',
+    used: 'Each goal shows who uses the data and its ★ parts, and the report lists real missions like yours.' },
+  { name: 'NASA: CubeSat 101', url: 'https://www.nasa.gov/wp-content/uploads/2017/03/nasa_csli_cubesat_101_508.pdf',
+    note: 'A guide for first-time teams building and launching a very small satellite.',
+    used: 'The small bus and the power and data budgets on mission 1.' },
+  { name: 'Canadian Space Agency: digital games and activities', url: 'https://www.asc-csa.gc.ca/eng/youth-educators/digital-games-and-activities.asp',
+    note: 'Free space games and activities for young explorers.',
+    used: 'Beginner mode, Ollie the coach and plain-language help.' }
 ];
 
 // ---------- phase bar (with JPL Concept Maturity Level labels) ----------

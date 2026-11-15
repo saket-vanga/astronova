@@ -109,7 +109,7 @@ const SCREENS = {};
 function render() {
   const fn = SCREENS[S.screen] || SCREENS.title;
   renderTopbar();
-  app.innerHTML = fn.html();
+  app.innerHTML = (FLIGHT_SCREENS.includes(S.screen) ? '' : phaseBar()) + fn.html();
   app.dataset.screen = S.screen;
   if (fn.after) fn.after();
 }
@@ -163,8 +163,8 @@ function toast(text) {
 function handbookHtml() {
   return `<div class="row between"><h2>📖 Handbook</h2><button class="iconbtn" data-act="closeHandbook" aria-label="Close the handbook">✕</button></div>` +
     HANDBOOK.map((h, i) => `<details${i === 0 ? ' open' : ''}><summary>${h.title}</summary><div class="hb">${h.html}</div></details>`).join('') +
-    `<details><summary>Learn more</summary><div class="hb"><ul class="links">${RESOURCES.map(r =>
-      `<li><a href="${r.url}" target="_blank" rel="noopener">${esc(r.name)}</a><br><span class="small muted">${esc(r.note)}</span></li>`).join('')}</ul></div></details>`;
+    `<details><summary>Learn more</summary><div class="hb"><p class="small">This game was shaped by these real NASA and space agency resources. Each one opens in a new tab.</p><ul class="links">${RESOURCES.map(r =>
+      `<li><a href="${r.url}" target="_blank" rel="noopener">${esc(r.name)}</a><br><span class="small muted">${esc(r.note)}</span><br><span class="small"><b>In the game:</b> ${esc(r.used)}</span></li>`).join('')}</ul></div></details>`;
 }
 
 // ---------- shared bits of HTML ----------
@@ -284,6 +284,11 @@ SCREENS.review = {
       <div class="card summary ${blocks.length ? 'bad' : warns.length ? 'warn' : 'ok'}">
         <b>${blocks.length ? `${plural(blocks.length, 'problem')} must be fixed before launch.` : warns.length ? `Cleared to launch, with ${plural(warns.length, 'risk')}.` : 'All green. Cleared to launch!'}</b>
         <p class="small">Plan: ${dev.toFixed(1)} years to build and test, ${c.cruise ? fmtYears(c.cruise).replace(' yr', ' years') + ' of cruise, ' : ''}${S.plan.opsMonths} months of science (${plural(c.passes, 'pass')})${m.needReturn ? ', then the trip home' : ''}.</p></div>
+      <div class="card conops-card"><h3>🗓️ Concept of operations</h3>
+        <p class="small muted">The whole mission from first bolt to last byte. Real teams plan this before anything is built.</p>
+        ${conopsHtml(c, m, S.plan)}
+        <h3 class="mt">🧭 Trajectory</h3>${trajSvg(m, S.plan)}
+        <p class="small muted">Real teams work out paths like this with NASA's free GMAT software.</p></div>
       ${segs}
       <div class="row between wrap"><button class="btn ghost" data-act="toHangar">← Back to the hangar</button>
         <button class="btn primary big" data-act="launch"${blocks.length ? ' disabled' : ''}>🚀 Launch!</button></div></div>`;
