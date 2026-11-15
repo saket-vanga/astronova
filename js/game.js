@@ -190,7 +190,9 @@ SCREENS.title = {
         ${has ? '<button class="btn primary big" data-act="continueGame">Continue</button>' : ''}
         <button class="btn ${has ? 'ghost' : 'primary'} big" data-act="newGame">${has ? 'New campaign' : 'Play'}</button>
         <button class="btn ghost" data-act="openHandbook">How to play</button>
-      </div><p class="small muted credit">A game by Team Hubble Huddle 🔭</p></div>`;
+      </div>
+      <div class="title-feats" aria-hidden="true"><span>🪐 5 missions</span><span>🔧 32 parts</span><span>🕹️ 6 flight games</span><span>👥 Co-op for 4</span></div>
+      <p class="small muted credit">A game by Team Hubble Huddle 🔭</p></div>`;
   }
 };
 
