@@ -830,7 +830,8 @@ SCREENS.finale = {
       <p class="lede">Five missions, from a little Earth satellite to an ocean world 1.4 billion km away.</p>
       <div class="dialog">${MISSIONS[4].outro.map(([w, t]) => crewLine(w, t)).join('')}</div>
       <p class="mono">${totalStars()} / 15 stars · ${total} points across the campaign</p>
-      <p class="credit-roll">🔭 Made with love by <b>Team Hubble Huddle</b> for the NASA Space Apps Challenge. Thanks for flying with us!</p>
+      <div class="credit-roll"><p>🔭 Made with love by <b>Team Hubble Huddle</b> for the NASA Space Apps Challenge. Thanks for flying with us!</p>
+        <ul class="team-names">${TEAM.map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>
       <p class="muted">Want more? Try every prime goal, a harder difficulty, or Sandbox with every part unlocked.</p>
       <div class="row gap end wrap"><button class="btn ghost" data-act="toSetup">Change difficulty</button><button class="btn primary" data-act="toMap">Mission control</button></div></div></div>`;
   }

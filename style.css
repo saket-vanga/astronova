@@ -732,3 +732,7 @@ input[type=text]:focus, textarea:focus { outline: none; border-color: #7af5dc; b
   .title-screen .stack .btn { min-width: 0; width: min(280px, 100%); }
 }
 @media (prefers-reduced-motion: reduce) { body::before, body::after { animation: none; } .btn.primary::after { display: none; } }
+
+.credit-roll p { margin: 0 0 8px; }
+.team-names { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 14px; font-weight: 700; }
+.team-names li::before { content: '✦ '; color: #ffe08a; }

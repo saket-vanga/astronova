@@ -109,6 +109,23 @@ There is no single right answer. A heavy, power-hungry design can work if you pa
 
 <sub>All screenshots are captured from the real game. The game itself draws everything in code: it uses no image files.</sub>
 
+## 👩‍🚀 Team Hubble Huddle
+
+<table>
+  <tr>
+    <td align="center" width="33%"><b>Saket Reddy Vanga</b><br><sub>Team owner</sub></td>
+    <td align="center" width="33%"><b>Golla Naishika</b></td>
+    <td align="center" width="33%"><b>Pulkit Kayal</b></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Arnav Masiragani</b></td>
+    <td align="center"><b>Supriya Prashant Sutar</b></td>
+    <td align="center"><b>Arunkumar Kavin Selvan</b></td>
+  </tr>
+</table>
+
+<p align="center"><a href="https://www.spaceappschallenge.org/2026/find-a-team/poppy-pants/?tab=details">Our team page on the NASA Space Apps Challenge site</a></p>
+
 ---
 
 ## Contents
@@ -143,6 +160,7 @@ There is no single right answer. A heavy, power-hungry design can work if you pa
 - [Troubleshooting](#troubleshooting)
 
 **About**
+- [Team Hubble Huddle](#-team-hubble-huddle)
 - [Use of AI](#use-of-ai)
 - [Accessibility](#accessibility)
 - [Privacy](#privacy)
@@ -719,4 +737,4 @@ This game is not affiliated with or endorsed by NASA, JPL, the Canadian Space Ag
 
 ## License
 
-[Apache License 2.0](LICENSE). Copyright 2026 Team Hubble Huddle.
+[Apache License 2.0](LICENSE). Copyright 2026 Team Hubble Huddle: Saket Reddy Vanga, Golla Naishika, Pulkit Kayal, Arnav Masiragani, Supriya Prashant Sutar and Arunkumar Kavin Selvan.

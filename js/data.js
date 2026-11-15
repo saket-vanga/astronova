@@ -628,6 +628,9 @@ const REAL_MISSIONS = [
     match: x => x.m.id === 'm5' && x.d.rtg === 0 && x.d.solarKw > 0 }
 ];
 
+// ---------- the team ----------
+const TEAM = ['Saket Reddy Vanga', 'Golla Naishika', 'Pulkit Kayal', 'Arnav Masiragani', 'Supriya Prashant Sutar', 'Arunkumar Kavin Selvan'];
+
 // ---------- learn more (the challenge resources, and what each one shaped in the game) ----------
 const RESOURCES = [
   { name: 'NASA: Design and Develop Science Missions (webinar slides)', url: 'https://ntrs.nasa.gov/citations/20250002492',
@@ -719,6 +722,7 @@ const HANDBOOK = [
     '<li>Stuck? Press "Build it for me" in the hangar, then improve the design yourself.</li></ul>' },
   { title: 'About this game', html:
     '<p><b>AstroNova</b> was made by Team Hubble Huddle for the NASA Space Apps Challenge "Space Mission Design Game". The engineering uses real relationships with simplified numbers. Rocket and part names are made up, and Ceruvia is fictional.</p>' +
+    '<p><b>Team Hubble Huddle:</b> ' + TEAM.join(', ') + '.</p>' +
     '<p><b>Use of AI:</b> the code, in-game text and synthesized sound were written with the help of Claude, an AI assistant made by Anthropic, as directed and reviewed by the team. No AI-generated images are used. All art is drawn in code.</p>' +
     '<p>This game is not affiliated with or endorsed by NASA or any other space agency. Our team name, Hubble Huddle, is a nod to the telescope, not a link to it.</p>' }
 ];
