@@ -222,10 +222,10 @@ ACT.setHat = icon => { funSet('ceruvia-hat', icon || null); rerender(); };
 
 // ---------- badges on Mission control ----------
 function badgesHtml() {
-  return `<div class="card"><h3>🏅 Badges <span class="small muted">${funBadges.length} / ${BADGES.length}</span></h3>
+  return `<details class="card fold"${funBadges.length ? ' open' : ''}><summary>🏅 Badges <span class="small muted">${funBadges.length} / ${BADGES.length} earned</span></summary>
     <div class="badges">${BADGES.map(b => { const got = funBadges.includes(b.id);
       return `<div class="badge${got ? ' got' : ''}" title="${b.name}: ${b.desc}"><span>${got ? b.icon : '🔒'}</span><b>${b.name}</b><small>${b.desc}</small></div>`; }).join('')}</div>
-    <p class="small muted">Discoveries collected: ${dexCount()} · Hats unlocked: ${hatsUnlocked().map(h => h.icon).join(' ') || 'none yet'}</p></div>`;
+    <p class="small muted">Discoveries collected: ${dexCount()} · Hats unlocked: ${hatsUnlocked().map(h => h.icon).join(' ') || 'none yet'}</p></details>`;
 }
 const fun_mapHtml = SCREENS.map.html;
 SCREENS.map.html = function (...a) {

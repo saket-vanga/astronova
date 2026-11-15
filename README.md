@@ -42,7 +42,7 @@ One star on a mission unlocks the next one, and every star adds money to later m
   - cost and build-and-test time
 - **32 parts** across 3 spacecraft sizes and 4 rockets, with a launch review grouped into launch, space, ground and user segments.
 - **Six arcade minigames**, one for each flight phase, plus a science-scan game and a turn-by-turn power emergency on missions 4 and 5. Your design changes how they play: precise pointing steers quicker, a heavy spacecraft responds slowly, big solar wings are a bigger target for debris, and a shield soaks up hits.
-- **Beginner mode:** Auto-build, automatic fuel, a hangar tour, fix-it buttons from Ollie the coach, and plain-language help on every meter.
+- **Beginner mode:** "Build it for me", automatic fuel, a hangar tour, fix-it buttons from Ollie the coach, and plain-language help on every meter. Every screen says what to do next, and the minigames add on-screen hints, an auto-brake for landings and a self-steadying reentry capsule.
 - **Five difficulties**, from Beginner to Flight Director, plus a Sandbox with everything unlocked.
 - **The fun layer:**
   - a cartoon look with planets that have faces

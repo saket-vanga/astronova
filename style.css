@@ -508,3 +508,37 @@ h3, h4 { font-family: var(--round); font-weight: 800; }
 .title-screen .episode { font-family: var(--display); color: var(--pink); letter-spacing: .04em; margin: -.1em 0 .4em; text-shadow: 0 2px 0 var(--ink); }
 .title-screen .credit { margin-top: 18px; }
 .credit-roll { font-family: var(--round); font-size: 1.05rem; background: rgba(255, 107, 157, .12); border: 1px dashed var(--pink); border-radius: 12px; padding: 10px 12px; }
+
+/* ---------- clarity pass: say what to do next on every screen ---------- */
+.mission { position: relative; }
+.mission.next { border-color: var(--accent); box-shadow: 0 5px 0 var(--ink), 0 0 0 4px rgba(255, 209, 102, .35); animation: nudge 1.6s ease-in-out infinite; }
+.nextflag { position: absolute; top: -12px; left: 14px; background: var(--accent); color: var(--ink); font: 800 .78rem var(--round); padding: 2px 10px; border-radius: 99px; border: 2px solid var(--ink); }
+@keyframes nudge { 0%, 100% { transform: none; } 50% { transform: translateY(-3px); } }
+details.fold > summary { font-family: var(--display); font-size: 1.1rem; list-style: none; cursor: pointer; }
+details.fold > summary::after { content: ' ▸ show'; font: 600 .8rem var(--font); color: var(--accent2); }
+details.fold[open] > summary::after { content: ' ▾ hide'; }
+details.fold[open] > summary { margin-bottom: .6rem; }
+.pill.pick { background: var(--good); color: var(--ink); border-color: var(--ink); vertical-align: middle; }
+.meter.idle .bar i { background: var(--line); }
+.meter.idle .mono { color: var(--muted); }
+.coach.pulse { animation: coachpulse 1s ease 3; }
+@keyframes coachpulse { 50% { box-shadow: 0 0 0 6px rgba(255, 209, 102, .6); } }
+.welcome { text-align: center; }
+.welcome .face.big { width: 72px; height: 72px; margin: 0 auto 6px; }
+.welcome .stack { display: flex; flex-direction: column; gap: 10px; align-items: stretch; margin: 14px 0 8px; }
+.card.summary .row { margin-top: 10px; }
+.todo { display: flex; gap: 10px; align-items: center; background: rgba(255, 209, 102, .14); border: 3px solid var(--accent); border-radius: 14px; padding: 8px 14px; margin: 10px 0; box-shadow: var(--sticker-sm); }
+.todo.ok { border-color: var(--good); background: rgba(6, 214, 160, .12); }
+.todo p { margin: 0; } .todo > span { font-size: 1.4rem; }
+.sitedot em { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; font: 700 .62rem var(--font); color: #fff; white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 6px #000; pointer-events: none; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+.sitedot.todo { box-shadow: 0 0 0 2px #fff, 0 0 0 7px rgba(255, 209, 102, .55); animation: sitepulse 1.4s ease-in-out infinite; }
+.sitedot.sel.todo, .sitedot.sel { animation: none; }
+@keyframes sitepulse { 50% { box-shadow: 0 0 0 2px #fff, 0 0 0 12px rgba(255, 209, 102, .15); } }
+.sitedot em.up { top: auto; bottom: 100%; margin: 0 0 3px; }
+.objlist.live li { color: var(--muted); } .objlist.live li.good { color: var(--good); font-weight: 700; }
+h3.mt { margin-top: 16px; }
+.report-next { justify-content: center; margin-top: 10px; width: 100%; }
+.howto { background: rgba(255, 209, 102, .12); border-left: 4px solid var(--accent); border-radius: 8px; padding: 8px 12px; }
+.game-card .job { background: rgba(6, 214, 160, .14); border: 3px solid var(--good); border-radius: 14px; padding: 10px 14px; margin: 10px 0; text-align: left; }
+.game-card .job .eyebrow { display: block; } .game-card .job b { font-family: var(--round); font-size: 1.2rem; }
+.gsteps { text-align: left; margin: 8px 0; padding-left: 1.4rem; } .gsteps li { margin: 4px 0; }

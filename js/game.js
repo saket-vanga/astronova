@@ -210,9 +210,11 @@ SCREENS.setup = {
 
 SCREENS.map = {
   html() {
+    const nextUp = MISSIONS.find(m => isUnlockedMission(m) && !starsOn(m.id));
     const cards = MISSIONS.map(m => {
-      const open = isUnlockedMission(m), done = S.campaign.done[m.id];
-      return `<button class="mission${open ? '' : ' locked'}" data-act="pickMission" data-arg="${m.id}"${open ? '' : ' aria-disabled="true"'}>
+      const open = isUnlockedMission(m), done = S.campaign.done[m.id], isNext = nextUp && nextUp.id === m.id;
+      return `<button class="mission${open ? '' : ' locked'}${isNext ? ' next' : ''}" data-act="pickMission" data-arg="${m.id}"${open ? '' : ' aria-disabled="true"'}>
+        ${isNext ? `<span class="nextflag">▶ ${totalStars() ? 'Next up' : 'Start here'}</span>` : ''}
         <span class="planet" aria-hidden="true">${open ? planetSvg(m.planet, starsOn(m.id) ? 'happy' : 'meh') : '<span class="lock">🔒</span>'}</span>
         <span class="mtext"><span class="eyebrow">Mission ${m.num} · ${esc(m.target)}</span><b>${esc(m.name)}</b>
         <span class="small muted">${open ? esc(m.teaches) : 'Earn a star on mission ' + (m.num - 1) + ' to unlock.'}</span></span>
@@ -220,11 +222,11 @@ SCREENS.map = {
     }).join('');
     const finale = starsOn('m5') > 0 ? '<button class="btn primary" data-act="toFinale">🎉 The finale</button>' : '';
     return `<div class="row between wrap"><div><div class="eyebrow">${esc(DIFF[S.difficulty].label)} · ${totalStars()} / 15 stars</div><h2>Mission control</h2></div>
-      <div class="row gap wrap">${finale}<button class="btn ghost small" data-act="loadCode">Load a design code</button><button class="btn ghost small" data-act="toSetup">Difficulty</button></div></div>
-      <p class="muted">Each star adds ${fmtM(STAR_BONUS)} to the budget of later missions. You need one star to unlock the next mission.</p>
+      <div class="row gap wrap">${finale}<button class="btn ghost small" data-act="toSetup">Difficulty</button></div></div>
+      <p class="muted">${nextUp ? `Tap <b>${esc(nextUp.name)}</b> to ${starsOn('m1') || S.campaign.done.m1 ? 'fly your next mission' : 'begin'}. ` : ''}Earn at least one star to unlock the next mission. Each star also adds ${fmtM(STAR_BONUS)} to later budgets.</p>
       <div class="missions">${cards}</div>
       <div class="card"><h3>🏆 Leaderboard (this device)</h3>${boardHtml()}</div>
-      <div class="row end"><button class="btn ghost small" data-act="resetSave">Reset progress</button></div>`;
+      <div class="row gap end wrap"><button class="btn ghost small" data-act="loadCode">Load a design code</button><button class="btn ghost small" data-act="resetSave">Reset progress</button></div>`;
   }
 };
 
@@ -251,15 +253,15 @@ SCREENS.briefing = {
 SCREENS.goal = {
   html() {
     const m = S.mission, lead = canAct('lead');
-    const cards = m.objectives.map(o => {
+    const cards = m.objectives.map((o, i) => {
       const n = GOAL_NEEDS[o.id], parts = goalParts(m, o.id).filter(id => isUnlocked(id, m, S.difficulty));
-      return `<div class="card goal${S.plan.goal === o.id ? ' sel' : ''}"><h3>🎯 ${esc(o.text)}</h3>
+      return `<div class="card goal${S.plan.goal === o.id ? ' sel' : ''}"><h3>🎯 ${esc(o.text)}${i === 0 && isSimple() && !S.plan.goal ? ' <span class="pill pick">👍 Good first pick</span>' : ''}</h3>
         <p><b>Who uses the data:</b> ${esc(n.users)}</p><p class="small">${esc(n.why)}</p>
         <div class="row gap wrap">${parts.map(id => partChip(id, ' ★')).join('')}</div>
         <div class="row end"><button class="btn ${S.plan.goal === o.id ? 'primary' : 'ghost'}" data-act="setGoal" data-arg="${o.id}"${lead ? '' : ' disabled'}>${S.plan.goal === o.id ? 'Chosen ✓' : 'Make this the prime goal'}</button></div></div>`;
     }).join('');
     return `<div class="narrow"><div class="eyebrow">Step 1 · Science first</div><h2>Choose the prime science goal</h2>
-      <p class="muted">Real missions start with a question, not a spacecraft. Your prime goal decides which parts matter most. Meeting it is worth +100 points. You can still earn the other stars.</p>
+      <p class="muted">Real missions start with a question, not a spacecraft. <b>Pick one goal below.</b> It decides which parts matter most, and meeting it is worth +100 points. You can still earn the other stars.</p>
       ${lead ? '' : `<p class="small muted">${esc(waitFor('lead'))} to choose.</p>`}${cards}
       ${S.plan.goal ? '<div class="row end"><button class="btn primary big" data-act="toHangar">To the hangar →</button></div>' : ''}</div>`;
   }
@@ -284,13 +286,14 @@ SCREENS.review = {
     return `<div class="narrow"><div class="eyebrow">Step 3 · Launch review</div><div class="row gap">${patchImg('big')}<h2>Is ${esc(S.shipName || 'your spacecraft')} ready to fly?</h2></div>
       <div class="card summary ${blocks.length ? 'bad' : warns.length ? 'warn' : 'ok'}">
         <b>${blocks.length ? `${plural(blocks.length, 'problem')} must be fixed before launch.` : warns.length ? `Cleared to launch, with ${plural(warns.length, 'risk')}.` : 'All green. Cleared to launch!'}</b>
-        <p class="small">Plan: ${dev.toFixed(1)} years to build and test, ${c.cruise ? fmtYears(c.cruise).replace(' yr', ' years') + ' of cruise, ' : ''}${S.plan.opsMonths} months of science (${plural(c.passes, 'pass')})${m.needReturn ? ', then the trip home' : ''}.</p></div>
-      <div class="card conops-card"><h3>🗓️ Concept of operations</h3>
-        <p class="small muted">The whole mission from first bolt to last byte. Real teams plan this before anything is built.</p>
+        <p class="small">${blocks.length ? 'Red ✗ items below stop the launch. Go back to the hangar to fix them' + (isSimple() ? ', or let Ollie do it.' : '.') : warns.length ? 'Amber ! items are risks. You can fly with them, or go back and fix them for a better score.' : 'Nothing left to fix. ' + (typeof NET !== 'undefined' && NET.on ? 'Everyone votes GO below to launch.' : 'Press Launch when you are ready.')}</p>
+        <div class="row gap wrap">${blocks.length ? '<button class="btn primary" data-act="toHangar">← Fix it in the hangar</button>' : '<button class="btn primary big" data-act="launch">🚀 Launch!</button><button class="btn ghost" data-act="toHangar">← Change the design</button>'}</div></div>
+      ${segs}
+      <div class="card conops-card"><h3>🗓️ Your mission plan</h3>
+        <p class="small muted">The whole mission from first bolt to last byte: ${dev.toFixed(1)} years to build and test, ${c.cruise ? fmtYears(c.cruise).replace(' yr', ' years') + ' of cruise, ' : ''}${S.plan.opsMonths} months of science (${plural(c.passes, 'pass')})${m.needReturn ? ', then the trip home' : ''}. Real teams call this a concept of operations.</p>
         ${conopsHtml(c, m, S.plan)}
         <h3 class="mt">🧭 Trajectory</h3>${trajSvg(m, S.plan)}
         <p class="small muted">Real teams work out paths like this with NASA's free GMAT software.</p></div>
-      ${segs}
       <div class="row between wrap"><button class="btn ghost" data-act="toHangar">← Back to the hangar</button>
         <button class="btn primary big" data-act="launch"${blocks.length ? ' disabled' : ''}>🚀 Launch!</button></div></div>`;
   }
@@ -320,6 +323,7 @@ function pilotOpts(extra) {
     agility: d.adcs ? d.adcs.agility : 0.8,
     tol: DIFF[S.difficulty].tol,
     assist: isSimple(),
+    hints: DIFF[S.difficulty].tol >= 1.4,
     retry: false
   }, extra || {});
 }
@@ -432,7 +436,7 @@ function doPass(siteId, scanMult, hits) {
 function popFinds(list) {
   showModal(`<h3>🔭 New discoveries!</h3><div class="finds">${list.map(f =>
     `<div class="find"><b>${esc(f.title)}</b><span class="pill">+${Math.round(f.pts * (f.mult || 1))} pts</span><p class="small">${esc(f.why)}</p>
-     <span class="small muted">${f.inst === 'lander' ? 'Found by the lander' : f.inst === 'sampler' ? 'Sample collected' : 'Found by the ' + esc(PARTS[f.inst].name.toLowerCase())}</span></div>`).join('')}</div>
+     <span class="small muted">${f.inst === 'lander' ? 'Found by the lander' : f.inst === 'sampler' ? 'Sample collected' : 'Found by the ' + esc(lc1(PARTS[f.inst].name))}</span></div>`).join('')}</div>
     <div class="row end"><button class="btn primary" data-act="closeModal">Nice!</button></div>`, { wide: true });
 }
 
@@ -602,24 +606,33 @@ SCREENS.transit = {
 function logHtml(list) { return `<ul class="log">${list.map(l => `<li class="${l.kind}">${esc(l.text)}</li>`).join('')}</ul>`; }
 
 // ---------- exploring ----------
+// New discoveries still possible at a site with the instruments on board.
+function siteNew(site) {
+  const r = S.run, orbit = S.mission.orbits[r.plan.orbit];
+  const plume = r.d.sampler && S.mission.plumeSite === site.id && !r.tagOk && orbit.detail && Math.abs(site.lat) <= orbit.maxLat ? 1 : 0;
+  return plume + Object.entries(site.finds).filter(([k, f]) => !r.finds.some(x => x.id === f.id) &&
+    (k === 'land' ? false : r.d.instruments.includes(k) && canSee(k, site, orbit))).length;
+}
 SCREENS.explore = {
   html() {
     const r = S.run, m = S.mission, orbit = m.orbits[r.plan.orbit];
     const site = m.sites.find(s => s.id === S.selSite) || m.sites[0];
     const band = (90 - orbit.maxLat) / 180 * 100;
+    const fresh = {}; m.sites.forEach(s => { fresh[s.id] = siteNew(s); });
+    const best = m.sites.slice().sort((a, b) => fresh[b.id] - fresh[a.id])[0];
     const dots = m.sites.map(s => {
       const n = r.finds.filter(f => f.site === s.id).length;
-      return `<button class="sitedot${s.id === site.id ? ' sel' : ''}${n ? ' found' : ''}" style="left:${s.x * 100}%;top:${(90 - s.lat) / 180 * 100}%"
-        data-act="selSite" data-arg="${s.id}" aria-label="${esc(s.name)}"><span>${n || ''}</span></button>`;
+      return `<button class="sitedot${s.id === site.id ? ' sel' : ''}${n ? ' found' : ''}${fresh[s.id] && r.passesLeft ? ' todo' : ''}" style="left:${s.x * 100}%;top:${(90 - s.lat) / 180 * 100}%"
+        data-act="selSite" data-arg="${s.id}" aria-label="${esc(s.name)}${fresh[s.id] ? ', new things to find' : ''}"><span>${n || ''}</span><em${s.lat < -30 ? ' class="up"' : ''}>${esc(s.name)}</em></button>`;
     }).join('');
     const rows = Object.entries(site.finds).map(([k, f]) => {
       const have = r.finds.some(x => x.id === f.id);
       let state;
       if (have) state = '<span class="good">✓ found</span>';
       else if (k === 'land') state = r.d.lander ? (r.landerUsed ? '<span class="muted">lander already used</span>' : 'land here to look') : '<span class="muted">needs a lander</span>';
-      else if (!r.d.instruments.includes(k)) state = `<span class="muted">needs the ${esc(PARTS[k].name.toLowerCase())}</span>`;
+      else if (!r.d.instruments.includes(k)) state = `<span class="muted">not on board</span>`;
       else if (!canSee(k, site, orbit)) state = `<span class="warnc">${Math.abs(site.lat) > orbit.maxLat ? 'out of view from this orbit' : 'needs a low orbit'}</span>`;
-      else state = 'ready to scan';
+      else state = '<b class="good">ready to scan</b>';
       const who = k === 'land' ? '🛬 Lander' : (CAT_STYLE[PARTS[k].cat].icon + ' ' + esc(PARTS[k].short));
       const clue = (m.clues.find(cl => cl.id === f.tag) || {}).name || '';
       return `<li><span>${who}</span><span class="small">${have ? esc(f.title) : '??? · ' + esc(clue)}</span><span class="small">${state}</span></li>`;
@@ -629,21 +642,32 @@ SCREENS.explore = {
     const canTag = m.minigames.includes('tag') && r.d.sampler && !r.tagOk;
     const last = S.lastPass && S.lastPass.site === site.id && S.lastPass.missed.length
       ? `<p class="small muted">Last pass: ${S.lastPass.missed.map(x => esc(x.inst === 'sampler' ? 'sample arm' : PARTS[x.inst].short) + ' ' + x.why).join('; ')}.</p>` : '';
+    const R = liveR(r), objs = m.objectives.map(o => { const ok = !!o.check(R);
+      return `<li class="${ok ? 'good' : ''}">${ok ? '★' : '☆'} ${esc(o.text)}${o.id === r.plan.goal ? ' <span class="pill">Prime goal</span>' : ''}</li>`; }).join('');
+    const allDone = m.objectives.every(o => o.check(R));
+    // One line that always says what to do next.
+    let todo;
+    if (r.passesLeft <= 0) todo = (canLand || canTag) ? `No passes left. You can still ${canLand ? 'land' : 'grab a sample'}, or press <b>Finish science</b>.` : 'No passes left. Press <b>Finish science</b> to see how you did.';
+    else if (!fresh[site.id] && best && fresh[best.id]) todo = `Nothing new for your instruments at ${esc(site.name)}. Tap <b>${esc(best.name)}</b> on the map instead.`;
+    else if (!fresh[site.id]) todo = (canLand || canTag) ? `Nothing ${r.finds.length ? 'more ' : ''}for your instruments to find from orbit. Pick a spot and press ${canLand ? '<b>🛬 Land here</b>' : '<b>🦾 Touch-and-go here</b>'}.` : `Nothing ${r.finds.length ? 'more ' : ''}for your instruments to find. Press <b>Finish science</b>.`;
+    else todo = `Press <b>🔭 Science pass here</b> to scan ${esc(site.name)}, or tap another glowing spot on the map. Each scan uses one pass.`;
     return `<div class="row between wrap"><div><div class="eyebrow">Step 4 · Science operations</div><h2>${FACES.planet[m.planet]} Exploring ${esc(m.target)}</h2></div>
       <div class="row gap wrap"><span class="pill">🛰️ ${plural(r.passesLeft, 'pass')} left</span><span class="pill">📶 ${fmtPct(findingFrac())} of data home</span><span class="pill">🔭 ${plural(r.finds.length, 'discovery')}</span></div></div>
+      <div class="todo ${allDone ? 'ok' : ''}"><span aria-hidden="true">👉</span><p>${sciRole ? todo : esc(holderName('sci')) + ' runs the science. Help them choose where to look.'}</p></div>
       <div class="explore-grid">
         <div class="card"><div class="planetmap" style="--pc:${planetColor(m.planet)}">
           <div class="nocov top" style="height:${band}%"></div><div class="nocov bot" style="height:${band}%"></div>${dots}</div>
-          <p class="small muted">Your ${esc(orbit.name.toLowerCase())} sees latitudes up to ${orbit.maxLat}°. Shaded areas are out of view${r.d.lander ? ', but the lander can go anywhere' : ''}.</p></div>
+          <p class="small muted">Glowing spots have something new to find. Your ${esc(lc1(orbit.name))} sees latitudes up to ${orbit.maxLat}°, and striped areas are out of view${r.d.lander ? ' (the lander can still go there)' : ''}.</p></div>
         <div class="card"><h3>${esc(site.name)} <span class="small muted">${Math.abs(site.lat)}° ${site.lat >= 0 ? 'N' : 'S'}</span></h3>
           <ul class="findlist">${rows}</ul>${last}
           <div class="row gap wrap">
-            <button class="btn primary" data-act="pass"${r.passesLeft > 0 && sciRole ? '' : ' disabled'}>🔭 Science pass here</button>
+            <button class="btn ${fresh[site.id] ? 'primary' : 'ghost'}" data-act="pass"${r.passesLeft > 0 && sciRole && fresh[site.id] ? '' : ' disabled'}>${fresh[site.id] || !r.passesLeft ? '🔭 Science pass here' : '🔭 Nothing new to scan here'}</button>
             ${canLand ? `<button class="btn ghost" data-act="land"${sciRole ? '' : ' disabled'}>🛬 Land here</button>` : ''}
             ${canTag ? `<button class="btn ghost" data-act="tag"${sciRole ? '' : ' disabled'}>🦾 Touch-and-go here</button>` : ''}
-          </div>${sciRole ? '' : `<p class="small muted">${esc(holderName('sci'))} runs the science.</p>`}</div></div>
+          </div>
+          <h3 class="mt">⭐ Objectives</h3><ul class="objlist live">${objs}</ul></div></div>
       <div class="card"><h3>📜 Mission log</h3>${logHtml(r.log.slice(-6))}</div>
-      <div class="row end"><button class="btn ${r.passesLeft ? 'ghost' : 'primary'}" data-act="finishExplore"${canAct('lead') ? '' : ' disabled'}>Finish science →</button></div>`;
+      <div class="row end"><button class="btn ${r.passesLeft && Object.values(fresh).some(Boolean) ? 'ghost' : 'primary big'}" data-act="finishExplore"${canAct('lead') ? '' : ' disabled'}>Finish science →</button></div>`;
   }
 };
 function planetColor(p) { return { earth: '#3d7bd9', moon: '#9aa0b4', asteroid: '#6b5a4e', mars: '#c8573a', ceruvia: '#9fd8ef' }[p] || '#888'; }
@@ -657,6 +681,7 @@ SCREENS.crisis = {
     const unsent = x.packets - x.sent - x.lost;
     const fc = r.d.fuelcell ? `<button class="btn ghost" data-act="crisisFuelCell"${pw && !x.fcUsed && !x.done ? '' : ' disabled'}>🧪 ${x.fcUsed ? `Fuel cell running (${Math.round(x.fc)} Wh left)` : `Start the fuel cell (+${r.d.fuelcell} Wh)`}</button>` : '';
     return `<div class="narrow"><div class="card crisis"><div class="eyebrow">Emergency · ${esc(ROLES.pwr.name)}</div><h2>⚡ ${esc(cr.name)}!</h2><p>${esc(cr.text)}</p>
+      ${x.done ? '' : `<p class="howto"><b>Your job:</b> keep the 🔋 battery above zero for ${cr.turns} turns. Switch systems off to save power, and switch the transmitter on when you can afford it to send data home.</p>`}
       <div class="crisis-stats">
         <div><span class="small muted">Turn</span><b class="mono">${Math.min(x.turn, cr.turns)} / ${cr.turns}</b></div>
         <div><span class="small muted">Making</span><b class="mono">${fmtW(p.gen)}</b></div>
@@ -753,7 +778,10 @@ SCREENS.report = {
     const row = (k, v, note) => `<tr><td>${k}${note ? `<br><span class="small muted">${note}</span>` : ''}</td><td class="mono">${v}</td></tr>`;
     return `<div class="narrow"><div class="eyebrow">Step 5 · Mission report</div><h2>${FACES.planet[m.planet]} ${esc(m.name)}: ${res.stars ? 'mission complete' : 'mission over'}</h2>
       <div class="card report-top"><div class="report-planet">${planetSvg(m.planet, res.stars >= 2 ? 'happy' : res.stars ? 'meh' : 'sad')}</div>${S.patch ? patchImg('big') : ''}<div class="bigstars">${starsHtml(res.stars)}</div><div class="total mono">${res.total} pts</div>
-        ${res.best ? '<span class="pill">New best!</span>' : ''}</div>
+        ${res.best ? '<span class="pill">New best!</span>' : ''}
+        <div class="row gap wrap report-next">${m.num === 5 && res.stars ? '<button class="btn primary big" data-act="toFinale">🎉 The finale</button>' : next && res.stars ? `<button class="btn primary big" data-act="nextMission">Next mission: ${esc(next.name)} →</button>` : '<button class="btn primary big" data-act="retryMission">↻ Try again</button>'}
+          ${res.stars && res.stars < 3 ? '<button class="btn ghost" data-act="retryMission">↻ Fly it again for more stars</button>' : ''}</div>
+        <p class="small muted">${res.stars ? (next && m.num < 5 ? `You unlocked mission ${next.num}. ` : '') + (res.stars < 3 ? 'The hints below show how to earn the stars you missed.' : 'All three stars. Superb!') : 'You need at least one star to unlock the next mission. The hints below show how.'}</p></div>
       ${res.stars ? `<div class="dialog">${m.outro.map(([w, t]) => crewLine(w, t)).join('')}</div>` : `<div class="dialog">${crewLine('ollie', 'No stars this time, but every crash is data. Read the hints below and try again.')}</div>`}
       <div class="card"><h3>⭐ Objectives</h3><ul class="objlist">${res.objectives.map(o => `<li class="${o.ok ? 'good' : 'bad'}">${o.ok ? '★' : '☆'} ${esc(o.text)}${o.id === r.plan.goal ? ' <span class="pill">Prime goal</span>' : ''}
         ${o.ok ? '' : `<br><span class="small muted">Hint: ${esc(OBJ_HINTS[o.id] || GOAL_NEEDS[o.id].why)}</span>`}</li>`).join('')}</ul></div>
@@ -894,7 +922,7 @@ const ACT = {
   tradeLoad(i) { tradeLoad(i); },
   tradeDel(i) { tradeDel(i); },
   autoBuild() {
-    if (allParts(S.build).length) confirmModal('Use Auto-build?', 'This replaces your current design with a simple one that passes the review and meets your prime goal. You can change it afterwards.', 'doAutoBuild', 'Auto-build');
+    if (allParts(S.build).length) confirmModal('Build it for me?', 'This replaces your current design with a simple one that passes the review and meets your prime goal. You can change it afterwards.', 'doAutoBuild', 'Yes, build it');
     else ACT.doAutoBuild();
   },
   doAutoBuild() {
@@ -904,7 +932,7 @@ const ACT = {
     S.build = r.build;
     S.plan = Object.assign({}, r.plan, { goal: S.plan.goal, manualFuel: false });
     saveBuild(); rerender();
-    toast('Auto-build done. Now make it your own!');
+    toast('Built! Check the meters, then press Launch review.');
   },
   setLv(k) { if (!canAct('lead') || !LAUNCHERS[k]) return; S.plan.lv = k; syncFuel(); saveBuild(); rerender(); },
   setOrbit(k) { if (!canAct('lead') || !S.mission.orbits[k]) return; S.plan.orbit = k; syncFuel(); saveBuild(); rerender(); },
@@ -912,6 +940,9 @@ const ACT = {
   setTraj(k) { if (!canAct('lead') || !S.mission.trajs[k]) return; S.plan.traj = k; syncFuel(); saveBuild(); rerender(); },
   fillFuel() { if (!canAct('prop')) return; S.plan.fuel = autoFuel(S.build, S.plan, S.mission, S.difficulty, bonusBudget()); saveBuild(); rerender(); },
   toReview() { saveBuild(); go('review'); },
+  welcomeCoach() { closeModal(); const el = document.getElementById('coach'); if (el) { el.classList.add('pulse'); el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); } },
+  welcomeAuto() { closeModal(); ACT.doAutoBuild(); },
+  welcomeTour() { closeModal(); startTour(); },
   shareCode() {
     showModal(`<h3>Design code</h3><p class="small muted">Copy this and send it to a friend. They can load it from Mission control.</p>
       <textarea class="code" readonly rows="4" id="codeOut">${esc(encodeDesign())}</textarea>
@@ -958,6 +989,8 @@ const ACT = {
   selSite(id) { S.selSite = id; rerender(); },
   pass() {
     if (!canAct('sci') || !S.run || S.run.passesLeft <= 0) return;
+    const here = S.mission.sites.find(x => x.id === S.selSite);
+    if (here && !siteNew(here)) { toast('Nothing new to find here. Pick a glowing spot.'); return; }
     const site = S.selSite, d = S.run.d;   // capture before the async scan
     runScan({ tol: DIFF[S.difficulty].tol, precise: !!(d.adcs && d.adcs.spare) }, (mult, hits) => doPass(site, mult, hits));
   },

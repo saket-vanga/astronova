@@ -96,10 +96,22 @@ function drawLander(ctx, x, y, s, thrust, side) {
 
 // ---------- the games ----------
 const GAMES = {};
+// A big on-canvas coaching line, shown on the easier difficulties (opts.hints).
+function hint(ctx, s, w, h, text, color) {
+  if (!s.o.hints || !text) return;
+  ctx.save(); ctx.font = '800 17px system-ui, sans-serif';
+  const tw = ctx.measureText(text).width + 28, x = w / 2 - tw / 2, y = 62;
+  ctx.fillStyle = 'rgba(7,10,34,.78)'; ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, tw, 32, 16); else ctx.rect(x, y, tw, 32);
+  ctx.fill(); ctx.restore();
+  label(ctx, text, w / 2, y + 17, color || '#ffd166', 17);
+}
 
 GAMES.launch = {
   title: 'Launch', icon: '🚀', role: 'prop',
-  how: 'Steer the rocket to follow the green ghost: it tips over slowly as you climb (a gravity turn). Between 8 and 22 km you hit Max-Q, the point of peak air pressure, so ease off the throttle there.',
+  job: 'Keep your rocket lined up with the green dashed outline.',
+  steps: o => ['The outline slowly tips to the right. Tap ▶ to tip with it, ◀ if you tip too far.', o.assist ? 'In the red zone (Max-Q, where the air pushes hardest) the engine eases off by itself.' : 'In the red zone (Max-Q, where the air pushes hardest) press ▼ to ease off the engine.'],
+  how: 'Rockets tip over as they climb so they end up flying sideways fast enough to stay in orbit. This is called a gravity turn.',
   keys: [{ k: 'left', l: '◀ Tilt' }, { k: 'down', l: '▼ Less' }, { k: 'up', l: '▲ More' }, { k: 'right', l: 'Tilt ▶' }],
   init(o, w, h) {
     return { o, alt: 0, pitch: 0, drift: 0, throttle: 1, t: 0, inBand: 0, total: 0, overloads: 0, stress: 0, combo: 0, comboT: 0, bestCombo: 0,
@@ -117,16 +129,17 @@ GAMES.launch = {
       if (K.down) s.throttle = Math.max(0.3, s.throttle - dt * 0.9);
       if (!K.up && !K.down && s.alt >= 22) s.throttle = Math.min(1, s.throttle + dt * 0.3);
     }
-    s.drift = clamp((s.drift + (Math.random() - 0.5) * dt * 40 * (1 + heavy)) * (1 - dt * 0.7), -12, 12);
+    s.drift = clamp((s.drift + (Math.random() - 0.5) * dt * 40 * (1 + heavy) * (o.assist ? 0.6 : 1)) * (1 - dt * 0.7), -12, 12);
     const steer = (K.right ? 1 : 0) - (K.left ? 1 : 0);
     s.pitch = clamp(s.pitch + (steer * 40 * ag + s.drift) * dt, -15, 105);
     s.alt += s.throttle * (4.8 - 1.5 * heavy) * dt;
-    const dev = Math.abs(s.pitch - this.ideal(s.alt)), band = 6 * (o.tol || 1);
+    const dev = Math.abs(s.pitch - this.ideal(s.alt)), band = 7 * (o.tol || 1);
+    s.dev = s.pitch - this.ideal(s.alt); s.band = band;
     s.total += dt;
     if (dev < band) {
       s.inBand += dt * (1 - dev / band * 0.3); s.comboT += dt;
       if (s.comboT >= 2) { s.combo++; s.comboT = 0; s.bestCombo = Math.max(s.bestCombo, s.combo); s.msg = 'On the line! ×' + s.combo; s.msgT = 1.2; SFX.blip(); }
-    } else { s.comboT = 0; s.combo = 0; }
+    } else { s.comboT = 0; s.combo = 0; if (dev < band * 2) s.inBand += dt * 0.5 * (2 - dev / band); }   // close still earns part credit
     if (inQ && s.throttle > 0.72) {
       s.stress += dt * (s.throttle - 0.72) * 5;
       if (s.stress >= 1) { s.overloads++; s.stress = 0; s.shake = 0.6; s.msg = 'Overload! Throttle down through Max-Q'; s.msgT = 1.6; SFX.deny(); }
@@ -165,6 +178,10 @@ GAMES.launch = {
     label(ctx, 'Throttle', 12, h - 10, '#ffd166', 11, 'left');
     if (s.inQ) { label(ctx, 'MAX-Q', w / 2, 28, '#ff8fab', 18); if (s.o.assist) label(ctx, 'AUTO-THROTTLE ON', w / 2, 50, '#5ee6c8', 13); }
     if (s.msgT > 0) label(ctx, s.msg, w / 2, h * 0.86, s.msg.startsWith('Over') ? '#ff8fab' : '#ffd166', 18);
+    if (s.inQ && !s.o.assist && s.throttle > 0.72) hint(ctx, s, w, h, '▼ Ease off the engine', '#ff8fab');
+    else if (s.dev < -s.band) hint(ctx, s, w, h, 'Tip right ▶');
+    else if (s.dev > s.band) hint(ctx, s, w, h, '◀ Tip back left');
+    else if (s.t < 3) hint(ctx, s, w, h, 'Match the green outline', '#5ee6c8');
   },
   hud(s) { return `Altitude <b>${Math.round(s.alt)} km</b> · Throttle <b>${Math.round(s.throttle * 100)}%</b> · On the line <b>${Math.round(s.inBand / Math.max(.01, s.total) * 100)}%</b>`; },
   verdict(r) {
@@ -176,7 +193,9 @@ GAMES.launch = {
 
 GAMES.dodge = {
   title: 'Cruise', icon: '☄️', role: 'lead',
-  how: 'Steer through the debris field. Grab ✦ star fixes to check your navigation. Every hit breaks a real part unless your debris shield soaks it up. Bigger solar wings make a bigger target.',
+  job: 'Dodge the grey rocks.',
+  steps: ['Move with ◀ ▶ ▲ ▼.', 'Grab the gold ✦ stars for bonus points.'],
+  how: 'Every hit breaks a real part unless a debris shield soaks it up. Bigger solar wings make a bigger target.',
   keys: [{ k: 'left', l: '◀' }, { k: 'up', l: '▲' }, { k: 'down', l: '▼' }, { k: 'right', l: '▶' }],
   init(o, w, h) {
     return { o, x: w / 2, y: h * 0.8, t: 0, dur: 24, debris: [], fixes: [], hits: 0, got: 0, inv: 0, shield: o.shield || 0, spawnT: 0.6, fixT: 1.5, w, h,
@@ -237,6 +256,7 @@ GAMES.dodge = {
     ctx.restore(); ctx.globalAlpha = 1;
     hbar(ctx, 16, 12, w - 32, 6, s.t / s.dur, '#5ee6c8');
     if (s.msgT > 0) label(ctx, s.msg, w / 2, h * 0.35, s.msg.startsWith('Hit') ? '#ff8fab' : '#5ee6c8', 18);
+    if (s.t < 4) hint(ctx, s, w, h, 'Dodge the rocks, grab the ✦', '#5ee6c8');
   },
   hud(s) { return `Hits <b>${s.hits}</b> · Shield <b>${s.shield}</b> · Star fixes <b>${s.got}</b> · ${Math.max(0, Math.ceil(s.dur - s.t))} s left`; },
   verdict(r) {
@@ -248,11 +268,13 @@ GAMES.dodge = {
 
 GAMES.insertion = {
   title: 'Orbit insertion', icon: '🎯', role: 'prop',
-  how: 'You are arriving too fast to stay. Hold BURN to fire the engine and slow down. Let go when the needle is in the green, so your path (white) matches the target orbit (dashed). You can tap again to trim, but every restart wastes a little fuel.',
+  job: 'Slow down until the white marker is in the green zone.',
+  steps: ['Hold 🔥 BURN to slow down. Watch the speed bar at the bottom.', 'Let go when the marker reaches the green. A little early? Tap again.'],
+  how: 'You arrive too fast to stay. Braking at just the right moment drops you into orbit. Every extra restart wastes a little fuel.',
   keys: [{ k: 'space', l: '🔥 Hold to burn' }],
   init(o, w, h) {
     const target = rnd(0.5, 0.62);
-    return { o, v: 1, t: 0, limit: 14, burning: false, burns: 0, after: 0, ramp: 0, target, band: 0.035 * (o.tol || 1), stars: makeStars(80, w, h) };
+    return { o, v: 1, t: 0, limit: 16, burning: false, burns: 0, after: 0, ramp: 0, target, band: 0.045 * (o.tol || 1), stars: makeStars(80, w, h) };
   },
   step(s, dt) {
     const o = s.o, heavy = o.heavy || 0;
@@ -303,6 +325,9 @@ GAMES.insertion = {
     const bx = 24, bw = w - 48, by = h - 34, map = v => (v - 0.2) / 0.8;
     hbar(ctx, bx, by, bw, 14, map(s.v), '#fff', [{ a: map(s.target - s.band), b: map(s.target + s.band), c: 'rgba(6,214,160,.8)' }]);
     label(ctx, 'Speed', bx, by - 10, '#cfd5ff', 11, 'left');
+    if (s.v > s.target + s.band * 2.2) hint(ctx, s, w, h, s.burning ? 'Keep holding…' : 'Hold 🔥 BURN');
+    else if (s.v > s.target + s.band) hint(ctx, s, w, h, 'Almost… get ready to let go');
+    else if (s.v >= s.target - s.band) hint(ctx, s, w, h, s.burning ? 'Let go now!' : 'In the green!', '#5ee6c8');
   },
   hud(s) { return `Speed <b>${Math.round(s.v * 100)}</b> · Target <b>${Math.round(s.target * 100)}</b> · Burns <b>${s.burns}</b> · ${Math.max(0, Math.ceil(s.limit - s.t))} s`; },
   verdict(r) {
@@ -335,22 +360,30 @@ function drawTerrain(ctx, s, w, h, sx, sy) {
 
 GAMES.landing = {
   title: 'Landing', icon: '🛬', role: 'sci', W: 200, H: 120,
-  how: 'Bring the lander down on the flashing pad. ▲ fires the main engine against gravity, ◀ ▶ nudge you sideways. Touch down slower than the safe speed shown in green. Watch your fuel!',
+  job: 'Land gently on the flashing green pad.',
+  steps: ['Hold ▲ to slow your fall. Let go to drop.', 'Tap ◀ ▶ to slide toward the pad.', 'Touch down while the speed at the top is green.'],
+  how: 'There is no air to slow you, so only the engine can. Landing off the pad still counts if you are gentle.',
   keys: [{ k: 'left', l: '◀' }, { k: 'up', l: '▲ Thrust' }, { k: 'right', l: '▶' }],
   init(o, w, h) {
-    const tol = o.tol || 1, padW = 18 + 12 * (tol - 1), padX = rnd(55, 145), fromLeft = padX > 100;
-    return { o, x: fromLeft ? 25 : 175, y: 104, vx: fromLeft ? 4 : -4, vy: 0, fuel: 12 + 6 * (tol - 1), fuel0: 12 + 6 * (tol - 1),
-      g: o.gravity || 1.62, padX, padW, ground: makeTerrain(200, o.rough == null ? 0.5 : o.rough + 0.3, padW, padX), stars: makeStars(60, w, h),
-      vyLim: 2.4 * Math.sqrt(tol), vxLim: 1.6 * Math.sqrt(tol), t: 0, thrust: false, side: 0 };
+    const tol = o.tol || 1, padW = 22 + 20 * (tol - 1), padX = rnd(55, 145), fromLeft = padX > 100;
+    const v0 = o.assist ? 2 : tol >= 1 ? 3 : 4, fuel = 14 + 8 * (tol - 1);
+    // stab: an automatic stabiliser that bleeds off sideways slide on the easier difficulties
+    return { o, x: fromLeft ? 25 : 175, y: 104, vx: fromLeft ? v0 : -v0, vy: 0, fuel, fuel0: fuel, stab: o.assist ? 1.5 : Math.max(0, tol - 1) * 1.5,
+      g: o.gravity || 1.62, padX, padW, ground: makeTerrain(200, (o.rough == null ? 0.5 : o.rough + 0.3) * (tol > 1.2 ? 0.6 : 1), padW, padX), stars: makeStars(60, w, h),
+      vyLim: 3 * Math.sqrt(tol), vxLim: 2.4 * Math.sqrt(tol), t: 0, thrust: false, side: 0, auto: false };
   },
   step(s, dt) {
-    const o = s.o, thrustA = Math.max(4, s.g * 2.2), sideA = 2.6 * (o.agility || 1);
+    const o = s.o, thrustA = Math.max(4.5, s.g * 2.6), sideA = 2.6 * (o.agility || 1);
     s.t += dt;
-    s.thrust = K.up && s.fuel > 0; s.side = s.fuel > 0 ? (K.right ? 1 : 0) - (K.left ? 1 : 0) : 0;
+    // Beginner: the landing computer brakes for you if you are about to hit too hard.
+    const altNow = s.y - groundAt(s.ground, s.x);
+    s.auto = !!o.assist && altNow < 6 + s.vy * s.vy / 2 && -s.vy > s.vyLim * 0.8;   // has its own small reserve, so it works with an empty tank
+    s.thrust = (K.up && s.fuel > 0) || s.auto; s.side = s.fuel > 0 ? (K.right ? 1 : 0) - (K.left ? 1 : 0) : 0;
     if (s.thrust) s.fuel -= dt;
     if (s.side) s.fuel -= dt * 0.3;
     s.fuel = Math.max(0, s.fuel);
     s.vx += s.side * sideA * dt;
+    if (s.stab) s.vx *= Math.max(0, 1 - s.stab * (altNow < 20 ? 3 : 1) * (s.side ? 0.4 : 1) * dt);   // steadier near the ground
     s.vy += (-s.g + (s.thrust ? thrustA : 0)) * dt;
     s.x += s.vx * dt; s.y += s.vy * dt;
     if (s.x < 4) { s.x = 4; s.vx = Math.abs(s.vx) * .3; } if (s.x > 196) { s.x = 196; s.vx = -Math.abs(s.vx) * .3; }
@@ -362,7 +395,7 @@ GAMES.landing = {
       let outcome = 'crash', why = '';
       if (-s.vy > s.vyLim) why = 'fast';
       else if (Math.abs(s.vx) > s.vxLim) why = 'side';
-      else if (!onPad && slope >= 0.35) why = 'slope';
+      else if (!onPad && slope >= 0.35 && (o.tol || 1) < 1) why = 'slope';
       else outcome = onPad ? 'pad' : 'off';
       return this.finish({ outcome, why, vy: -s.vy, vx: Math.abs(s.vx), vyLim: s.vyLim, vxLim: s.vxLim, fuelLeft: s.fuel / s.fuel0 });
     }
@@ -386,6 +419,16 @@ GAMES.landing = {
     label(ctx, `safe: ↓ below ${s.vyLim.toFixed(1)}, ↔ below ${s.vxLim.toFixed(1)}`, w / 2, 40, '#cfd5ff', 11);
     vbar(ctx, w - 26, 16, 12, 90, s.fuel / s.fuel0, '#ffd166');
     label(ctx, 'Fuel', w - 20, 116, '#ffd166', 11);
+    // a marker above the pad so it is easy to find
+    const px = s.padX * sx, py = h - 14 * sy - 22 - (blink ? 4 : 0);
+    ctx.fillStyle = '#5ee6c8'; ctx.beginPath(); ctx.moveTo(px - 9, py); ctx.lineTo(px + 9, py); ctx.lineTo(px, py + 12); ctx.closePath(); ctx.fill();
+    label(ctx, 'LAND HERE', px, py - 10, '#5ee6c8', 11);
+    const alt = s.y - 14, dx = s.padX - s.x;
+    if (s.auto) hint(ctx, s, w, h, '🤖 Auto-brake!', '#5ee6c8');
+    else if (-s.vy > s.vyLim && alt < 45) hint(ctx, s, w, h, 'Too fast! Hold ▲', '#ff8fab');
+    else if (Math.abs(s.vx) > s.vxLim && alt < 45) hint(ctx, s, w, h, s.vx > 0 ? '◀ Slow your slide' : 'Slow your slide ▶', '#ff8fab');
+    else if (Math.abs(dx) > s.padW / 2 + 4) hint(ctx, s, w, h, dx > 0 ? 'Pad is to the right ▶' : '◀ Pad is to the left');
+    else hint(ctx, s, w, h, 'Over the pad! Come down gently', '#5ee6c8');
   },
   hud(s) { const alt = Math.max(0, s.y - groundAt(s.ground, s.x)); return `Height <b>${Math.round(alt)} m</b> · Fuel <b>${Math.round(s.fuel / s.fuel0 * 100)}%</b> · Gravity ${s.g} m/s²`; },
   verdict(r) {
@@ -400,7 +443,9 @@ GAMES.landing = {
 
 GAMES.tag = {
   title: 'Touch-and-go', icon: '🦾', role: 'sci',
-  how: 'Gravity here is almost nothing. Drift down gently and touch the surface away from the boulders. Hold still for 3 seconds while the arm grabs a sample, then fire ▲ to back away before you tip over.',
+  job: 'Touch the ground gently, away from the boulders, then fly back up.',
+  steps: ['Tap ▲ to slow your fall and ◀ ▶ to steer clear of boulders.', 'When you touch, wait 3 seconds while the arm grabs a sample.', 'Then hold ▲ to back away.'],
+  how: 'Gravity here is almost nothing, so the spacecraft only kisses the surface. This is how OSIRIS-REx sampled asteroid Bennu.',
   keys: [{ k: 'left', l: '◀' }, { k: 'up', l: '▲ Thrust' }, { k: 'right', l: '▶' }],
   init(o, w, h) {
     const tol = o.tol || 1, rough = o.rough == null ? 0.5 : o.rough;
@@ -465,11 +510,13 @@ GAMES.tag = {
 
 GAMES.reentry = {
   title: 'Reentry', icon: '🔥', role: 'lead',
-  how: 'Keep the capsule inside the green corridor with ▲ ▼. Too low and it burns up, too high and it skips back into space. Then press DEPLOY when the speed needle is in the green to open the parachute.',
+  job: 'Keep the capsule inside the green path, then open the parachute.',
+  steps: ['Tap ▲ and ▼ to stay in the green path as it bends.', 'At the end, press 🪂 DEPLOY when the speed marker is in the green.'],
+  how: 'Too steep and the capsule burns up. Too shallow and it skips off the air like a stone on a pond.',
   keys: [{ k: 'up', l: '▲' }, { k: 'down', l: '▼' }, { k: 'space', l: '🪂 Deploy' }],
   init(o, w, h) {
     return { o, t: 0, dur: 15, y: 0, vy: 0, heat: 0, skip: 0, inBand: 0, phase: 'corridor', speed: 420, chute: null, after: 0, stars: makeStars(40, w, h),
-      bw: 0.3 * Math.sqrt(o.tol || 1), lo: 190 - 45 * (o.tol || 1), hi: 190 + 45 * (o.tol || 1) };
+      bw: 0.34 * Math.sqrt(o.tol || 1), lo: 190 - 45 * (o.tol || 1), hi: 190 + 45 * (o.tol || 1) };
   },
   centre(t) { return Math.sin(t * 0.55) * 0.45 + Math.sin(t * 1.3) * 0.15; },
   step(s, dt) {
@@ -477,12 +524,14 @@ GAMES.reentry = {
     s.t += dt;
     if (s.phase === 'corridor') {
       const ag = (o.agility || 1) * (1 - 0.3 * (o.heavy || 0));
-      s.vy += (((K.up ? 1 : 0) - (K.down ? 1 : 0)) * 2.4 * ag - 0.25 + rnd(-.6, .6)) * dt;
+      const tol = o.tol || 1, trim = Math.max(0, tol - 1) * 3;   // easier difficulties: the capsule leans back toward the path by itself
+      s.vy += (((K.up ? 1 : 0) - (K.down ? 1 : 0)) * 2.4 * ag - 0.25 + rnd(-.6, .6) + (this.centre(s.t) - s.y) * trim) * dt;
       s.vy *= (1 - dt * 1.2); s.y = clamp(s.y + s.vy * dt, -1.5, 1.5);
       const off = s.y - this.centre(s.t);
-      if (off > s.bw) s.skip += dt * (off - s.bw) * 1.3;
-      else if (off < -s.bw) s.heat += dt * (-off - s.bw) * 1.5;
-      else { s.inBand += dt; s.heat = Math.max(0, s.heat - dt * 0.05); s.skip = Math.max(0, s.skip - dt * 0.05); }
+      s.off = off;
+      if (off > s.bw) s.skip += dt * (off - s.bw) * 1.1 / (tol * tol);
+      else if (off < -s.bw) s.heat += dt * (-off - s.bw) * 1.2 / (tol * tol);
+      else { const cool = 0.1 + 0.3 * Math.max(0, tol - 1); s.inBand += dt; s.heat = Math.max(0, s.heat - dt * cool); s.skip = Math.max(0, s.skip - dt * cool); }
       if (s.heat >= 1) return this.finish({ ok: false, why: 'burn', acc: s.inBand / s.t });
       if (s.skip >= 1) return this.finish({ ok: false, why: 'skip', acc: s.inBand / s.t });
       if (s.t >= s.dur) { s.phase = 'chute'; s.acc = s.inBand / s.t; K.spaceHit = false; SFX.stage(); }
@@ -494,7 +543,8 @@ GAMES.reentry = {
         K.spaceHit = false;
         s.chute = s.speed > s.hi ? 'early' : s.speed >= s.lo ? 'good' : 'late';
         s.phase = 'float'; s.after = 0; SFX.place();
-      } else if (s.speed <= 0) return this.finish({ ok: false, why: 'nochute', acc: s.acc });
+      } else if (o.assist && s.speed <= s.lo) { s.chute = 'late'; s.phase = 'float'; s.after = 0; s.autoChute = true; SFX.place(); }   // Beginner: the backup timer opens it
+      else if (s.speed <= 0) return this.finish({ ok: false, why: 'nochute', acc: s.acc });
       return null;
     }
     s.after += dt;
@@ -526,6 +576,9 @@ GAMES.reentry = {
       ctx.fillStyle = '#8a4b2a'; ctx.fillRect(cx - 15, cy - 12, 4, 24);
       hbar(ctx, 16, 12, 110, 8, s.heat, '#ff6b6b', [{ a: 0, b: 1, c: 'rgba(255,107,107,.25)' }]); label(ctx, 'Heat', 16, 30, '#ff8fab', 11, 'left');
       hbar(ctx, 140, 12, 110, 8, s.skip, '#9ec0ff', [{ a: 0, b: 1, c: 'rgba(158,192,255,.25)' }]); label(ctx, 'Skip', 140, 30, '#9ec0ff', 11, 'left');
+      if (s.off < -s.bw * 0.7) hint(ctx, s, w, h, '▲ Pull up!', '#ff8fab');
+      else if (s.off > s.bw * 0.7) hint(ctx, s, w, h, '▼ Push down!', '#9ec0ff');
+      else if (s.t < 3) hint(ctx, s, w, h, 'Stay in the green path', '#5ee6c8');
       return;
     }
     const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#2d6fc4'); g.addColorStop(1, '#a9d6ff');
@@ -542,7 +595,7 @@ GAMES.reentry = {
     hbar(ctx, 24, h - 40, w - 48, 14, map(s.speed), '#fff', [{ a: map(s.lo), b: map(s.hi), c: 'rgba(6,214,160,.85)' }]);
     label(ctx, `Speed ${Math.round(s.speed)} m/s`, 24, h - 52, '#0b1030', 13, 'left');
     if (s.phase === 'chute') label(ctx, 'Press DEPLOY in the green!', w / 2, 30, '#0b1030', 18);
-    if (s.phase === 'float') label(ctx, { good: 'Perfect timing!', early: 'Too fast: backup chute!', late: 'A bit late: hard splash' }[s.chute], w / 2, 30, '#0b1030', 18);
+    if (s.phase === 'float') label(ctx, s.autoChute ? 'Backup timer opened the chute' : { good: 'Perfect timing!', early: 'Too fast: backup chute!', late: 'A bit late: hard splash' }[s.chute], w / 2, 30, '#0b1030', 18);
   },
   hud(s) { return s.phase === 'corridor' ? `In the corridor <b>${Math.round(s.inBand / Math.max(.01, s.t) * 100)}%</b> · Heat <b>${Math.round(s.heat * 100)}%</b> · Skip <b>${Math.round(s.skip * 100)}%</b>` : `Speed <b>${Math.round(s.speed)} m/s</b> · Deploy between ${Math.round(s.lo)} and ${Math.round(s.hi)}`; },
   verdict(r) {
@@ -585,6 +638,8 @@ function designEffects(o, kind) {
   if (kind === 'dodge' && o.span > 1.6) out.push('🔆 Big solar wings: a bigger target');
   if (kind === 'dodge') out.push(o.shield ? `🛡️ Debris shield: soaks up ${plural(o.shield, 'hit')}` : '⚠️ No debris shield: every hit breaks a part');
   if (kind === 'launch' && o.assist) out.push('🤖 Auto-throttle through Max-Q (Beginner)');
+  if (kind === 'landing' && o.assist) out.push('🤖 Auto-brake and a slide stabiliser (Beginner)');
+  if (kind === 'reentry' && o.assist) out.push('🤖 Self-steadying capsule and a backup parachute timer (Beginner)');
   if (o.tol > 1.2) out.push('🟢 Wide safe zones on this difficulty');
   if (o.tol < 1) out.push('🔴 Tight safe zones on this difficulty');
   if (kind === 'landing' || kind === 'tag') out.push(`🌍 Gravity: ${o.gravity} m/s²`);
@@ -599,17 +654,21 @@ const SCREENS_GAME = {
     const head = `<div class="eyebrow">Mission ${S.mission.num} · ${esc(S.mission.name)} · ${esc(ROLES[G.role].name)}</div><h2>${G.icon} ${G.title}</h2>`;
     if (g.phase === 'intro') {
       const fx = designEffects(g.opts, g.kind);
-      return `<div class="card game-card">${head}<p>${G.how}</p>
-        <div class="keys">${G.keys.map(k => `<span class="pill">${k.l}</span>`).join(' ')} <span class="small muted">Keyboard: arrow keys or WASD${G.keys.some(k => k.k === 'space') ? ', and Space' : ''}.</span></div>
-        ${fx.length ? `<div class="effects"><b>Your design changes this flight:</b><ul>${fx.map(t => `<li>${t}</li>`).join('')}</ul></div>` : ''}
+      const touch = matchMedia('(pointer: coarse)').matches;
+      return `<div class="card game-card">${head}
+        <div class="job"><span class="eyebrow">Your job</span><b>${G.job}</b></div>
+        <ol class="gsteps">${(typeof G.steps === 'function' ? G.steps(g.opts) : G.steps).map(t => `<li>${t}</li>`).join('')}</ol>
+        <div class="keys">${G.keys.map(k => `<span class="pill">${k.l}</span>`).join(' ')} <span class="small muted">${touch ? 'Use the buttons under the game.' : `Use the arrow keys or WASD${G.keys.some(k => k.k === 'space') ? ', and Space' : ''}.`}</span></div>
+        <p class="small muted">💡 ${G.how}</p>
+        ${fx.length ? `<div class="effects"><b>Helping or hurting you this time:</b><ul>${fx.map(t => `<li>${t}</li>`).join('')}</ul></div>` : ''}
         <button class="btn primary big" data-act="gameGo">Start ▶</button></div>`;
     }
     if (g.phase === 'done') {
       const v = G.verdict(g.result), canRetry = g.result.score < 70 && S.retriesLeft > 0 && g.opts.retry;
       return `<div class="card game-card">${head}<div class="verdict ${v.good}"><div class="stamp-slot"></div><h3>${esc(v.title)}</h3><p>${esc(v.text)}</p><p class="mono">Score ${g.result.score}/100</p>
         <p class="small muted">Ollie: “${quip(v.good)}”</p>${g.opts.lesson ? `<p class="small lesson">💡 ${esc(g.opts.lesson(g.result))}</p>` : ''}</div>
-        <div class="row gap wrap">${canRetry ? `<button class="btn ghost" data-act="gameRetry">↻ Retry (${S.retriesLeft} left)</button>` : ''}
-        <button class="btn primary" data-act="gameDone">Continue →</button></div></div>`;
+        <div class="row gap wrap">${canRetry ? `<button class="btn ${g.result.ok ? 'ghost' : 'primary'}" data-act="gameRetry">↻ Try again (${S.retriesLeft} left)</button>` : ''}
+        <button class="btn ${canRetry && !g.result.ok ? 'ghost' : 'primary'}" data-act="gameDone">${canRetry && !g.result.ok ? 'Carry on anyway →' : 'Continue →'}</button></div></div>`;
     }
     return `<div class="game-wrap">${head}<div class="ghud" id="ghud"></div>
       <div class="gcanvas"><canvas id="gcv" aria-label="${esc(G.title)} game"></canvas></div>

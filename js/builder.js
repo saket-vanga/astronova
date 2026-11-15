@@ -132,7 +132,7 @@ function placeProblem(id, type, idx, from) {
   if (p.kind) {
     const here = x => (x.type === type && x.idx === idx) || (from && x.type === from.type && x.idx === from.idx);
     const clash = allPartsWithPos(S.build).find(x => PARTS[x.id].kind === p.kind && !here(x));
-    if (clash) return 'Only one ' + p.kind + ' per spacecraft. Remove the ' + PARTS[clash.id].name.toLowerCase() + ' first.';
+    if (clash) return 'Only one ' + p.kind + ' per spacecraft. Remove the ' + lc1(PARTS[clash.id].name) + ' first.';
   }
   return '';
 }
@@ -213,9 +213,12 @@ function meter(mt) {
   const ex = EXPLAIN[mt.key];
   return `<div class="meter ${mt.level}"><div class="row"><b>${ex.icon} ${mt.label}</b><span class="mono small">${mt.value}</span>
     <button class="qbtn" data-act="explain" data-arg="${mt.key}" aria-label="What is ${mt.label}?">?</button></div>
-    <div class="bar"><i style="width:${Math.round(mt.fill * 100)}%"></i></div>${mt.level !== 'ok' ? `<div class="fix small">${ex.fix}</div>` : ''}</div>`;
+    <div class="bar"><i style="width:${Math.round(mt.fill * 100)}%"></i></div>${mt.level === 'bad' || mt.level === 'warn' ? `<div class="fix small">${ex.fix}</div>` : ''}</div>`;
 }
-function metersHtml(c) { return dashMeters(c).map(meter).join(''); }
+function metersHtml(c) {
+  const empty = !c.d.ids.length;   // nothing fitted yet: no red warnings before the player has done anything
+  return dashMeters(c).map(mt => meter(empty && mt.level !== 'ok' ? Object.assign(mt, { level: 'idle' }) : mt)).join('');
+}
 
 // ---------- shelf ----------
 function partChip(id, extra) {
@@ -618,8 +621,8 @@ function hangarHtml() {
     : `<div class="hangar-grid"><div class="card" id="ship">${shipHtml()}</div><div class="card shelf" id="shelf">${shelfHtml()}</div></div>`;
   return `<div class="hangar">
     <div class="row between wrap"><div><div class="eyebrow">Step 2 · Design · Mission ${S.mission.num}</div><h2>Hangar</h2></div>
-      <div class="row gap wrap"><button class="btn ghost small" data-act="startTour">🧭 Show me around</button><button class="btn ghost" data-act="autoBuild">✨ Auto-build</button>
-      <button class="btn primary" data-act="toReview">Launch review →</button></div></div>
+      <div class="row gap wrap"><button class="btn ghost small" data-act="startTour">🧭 Show me around</button><button class="btn ghost" data-act="autoBuild">✨ Build it for me</button>
+      <button class="btn ${blocks ? 'ghost' : 'primary'}" data-act="toReview">Launch review →</button></div></div>
     ${goalChip()}
     ${coachHtml(c)}
     <div class="meters card" id="meters">${metersHtml(c)}</div>
@@ -631,7 +634,20 @@ function hangarHtml() {
 }
 function hangarAfter() {
   if (S.hangarTab === 'paint') initPatch();
-  if (isSimple() && S.hangarTab === 'build' && !tourState && store.get('ceruvia-tour') !== '1') setTimeout(() => { if (S.screen === 'hangar' && !tourState) startTour(); }, 400);
+  // First time in the hangar on Beginner: offer three ways to start instead of dropping the player in cold.
+  if (isSimple() && S.hangarTab === 'build' && !tourState && store.get('ceruvia-tour') !== '1' && !(typeof NET !== 'undefined' && NET.on)) {
+    store.set('ceruvia-tour', '1');
+    setTimeout(() => { if (S.screen === 'hangar' && !tourState && $('#modal').hidden) hangarWelcome(); }, 350);
+  }
+}
+function hangarWelcome() {
+  showModal(`<div class="welcome"><div class="face big" style="--crew:${CREW.ollie.color}" aria-hidden="true">${FACES.crew.ollie}</div>
+    <h3>Welcome to the hangar!</h3><p>This is where you build your spacecraft. How do you want to start?</p>
+    <div class="stack">
+      <button class="btn primary big" data-act="welcomeCoach">🧑‍🚀 Build it step by step with Ollie</button>
+      <button class="btn ghost" data-act="welcomeAuto">✨ Build it for me</button>
+      <button class="btn ghost" data-act="welcomeTour">🧭 Show me around first</button>
+    </div><p class="small muted">You can change anything afterwards. Ollie's yellow button always shows the next step.</p></div>`);
 }
 function blockNote(n) { return n ? plural(n, 'problem') + ' must be fixed before launch.' : 'No blockers. Check the launch review.'; }
 function goalChip() {
@@ -668,9 +684,9 @@ function canShow(id) { return partVisible(id); }
 function partFix(id, verb) {
   if (!id || !PARTS[id]) return null;
   const p = PARTS[id], role = CAT_ROLE[p.cat];
-  if (!canAct(role)) return { arg: '', label: holderName(role) + ' can fit the ' + p.name.toLowerCase(), locked: true };
-  if (!hasFree(p.slot)) { const b = biggerBus(); return b ? { arg: 'bus:' + b, label: 'Use the ' + BUSES[b].name.toLowerCase() } : null; }
-  return { arg: 'part:' + id, label: (verb || 'Fit the') + ' ' + p.name.toLowerCase() };
+  if (!canAct(role)) return { arg: '', label: holderName(role) + ' can fit the ' + lc1(p.name), locked: true };
+  if (!hasFree(p.slot)) { const b = biggerBus(); return b ? { arg: 'bus:' + b, label: 'Use the ' + lc1(BUSES[b].name) } : null; }
+  return { arg: 'part:' + id, label: (verb || 'Fit the') + ' ' + lc1(p.name) };
 }
 function antennaFor(c, need) {
   const hours = c.ground ? c.ground.hours : 8;
@@ -699,7 +715,7 @@ function coachSteps(c) {
       const need = GOAL_NEEDS[S.plan.goal];
       if (!g.orbitOk) {
         const k = Object.keys(m.orbits).find(o => m.orbits[o].maxLat >= 70);
-        add('Your goal needs an orbit that flies over the poles. ' + need.why, k ? { arg: 'orbit:' + k, label: 'Switch to the ' + m.orbits[k].name.toLowerCase() } : null);
+        add('Your goal needs an orbit that flies over the poles. ' + need.why, k ? { arg: 'orbit:' + k, label: 'Switch to the ' + lc1(m.orbits[k].name) } : null);
       } else {
         const byCost = (a, b) => PARTS[a].cost - PARTS[b].cost;
         const cands = goalParts(m, S.plan.goal).filter(id => canShow(id) && !d.ids.includes(id)).sort(byCost);
@@ -707,10 +723,10 @@ function coachSteps(c) {
         const others = Object.keys(PARTS).filter(id => ['bay', 'top', 'bottom'].includes(PARTS[id].slot) && canShow(id) && !d.ids.includes(id) && !cands.includes(id)).sort(byCost);
         const completes = id => { const b = clone(S.build), arr = b.slots[PARTS[id].slot]; let i = arr.indexOf(null); if (i < 0 && arr.length === 1) i = 0; if (i < 0) return false; arr[i] = id; return goalStatus(b, S.plan, m, S.plan.goal).ok; };
         const pick = cands.find(completes) || others.find(completes) || cands[0];
-        if (pick) add(`To ${m.objectives.find(o => o.id === S.plan.goal).text.toLowerCase()}, add a ★ Goal part. ${need.why}`, partFix(pick, 'Add the'));
+        if (pick) add(`To ${lc1(m.objectives.find(o => o.id === S.plan.goal).text)}, add a ★ Goal part. ${need.why}`, partFix(pick, 'Add the'));
         else {
           const k = Object.keys(m.orbits).find(o => { const p = Object.assign({}, S.plan, { orbit: o }); return goalStatus(S.build, p, m, S.plan.goal).ok; });
-          add('Your goal parts cannot see the right places from this orbit. ' + need.why, k ? { arg: 'orbit:' + k, label: 'Switch to the ' + m.orbits[k].name.toLowerCase() } : null);
+          add('Your goal parts cannot see the right places from this orbit. ' + need.why, k ? { arg: 'orbit:' + k, label: 'Switch to the ' + lc1(m.orbits[k].name) } : null);
         }
       }
     }
@@ -737,7 +753,7 @@ function coachSteps(c) {
     else {
       const goalSet = new Set(S.plan.goal ? goalParts(m, S.plan.goal) : []);
       const spare = allPartsWithPos(S.build).filter(x => PARTS[x.id].inst && !goalSet.has(x.id)).sort((a, b) => PARTS[b.id].cost - PARTS[a.id].cost)[0];
-      if (spare) add(`Over budget by ${fmtM(-c.budgetLeft)}. The ${PARTS[spare.id].name.toLowerCase()} is not needed for your goal.`, { arg: 'remove:' + spare.type + ':' + spare.idx, label: 'Remove it' });
+      if (spare) add(`Over budget by ${fmtM(-c.budgetLeft)}. The ${lc1(PARTS[spare.id].name)} is not needed for your goal.`, { arg: 'remove:' + spare.type + ':' + spare.idx, label: 'Remove it' });
       else add(`Over budget by ${fmtM(-c.budgetLeft)}. Try fewer months of operations, or a cheaper antenna or ground station.`);
     }
   }
@@ -752,10 +768,10 @@ function coachSteps(c) {
   if (essentials && science && fits && budgetOk && powerOk) {
     if (c.dataRatio < 0.9 && d.antenna) {
       const better = antennaFor(c, c.genMb);
-      if (better !== d.antenna && PARTS[better].rate > d.antenna.rate) add(`Only ${fmtPct(c.dataRatio)} of your data will get home. A bigger dish sends more.`, { arg: 'part:' + better, label: 'Fit the ' + PARTS[better].name.toLowerCase() });
+      if (better !== d.antenna && PARTS[better].rate > d.antenna.rate) add(`Only ${fmtPct(c.dataRatio)} of your data will get home. A bigger dish sends more.`, { arg: 'part:' + better, label: 'Fit the ' + lc1(PARTS[better].name) });
     }
     if (!c.arrivalOk) add(`The trip takes too long for the deadline. Pick the faster route in More settings.`, (() => {
-      const k = Object.keys(m.trajs).find(t => m.trajs[t].cruise <= m.window); return k ? { arg: 'traj:' + k, label: 'Take the ' + m.trajs[k].name.toLowerCase() } : null; })());
+      const k = Object.keys(m.trajs).find(t => m.trajs[t].cruise <= m.window); return k ? { arg: 'traj:' + k, label: 'Take the ' + lc1(m.trajs[k].name) } : null; })());
   }
   return {
     checks: [['Parts', essentials], ['Science', science], ['Fits the rocket', fits], ['Budget', budgetOk], ['Power', powerOk]],
@@ -764,7 +780,7 @@ function coachSteps(c) {
 }
 function swapFix(from, to) {
   const pos = allPartsWithPos(S.build).find(x => x.id === from);
-  return pos ? { arg: `swap:${pos.type}:${pos.idx}:${to}`, label: 'Swap in the ' + PARTS[to].name.toLowerCase() } : partFix(to, 'Add the');
+  return pos ? { arg: `swap:${pos.type}:${pos.idx}:${to}`, label: 'Swap in the ' + lc1(PARTS[to].name) } : partFix(to, 'Add the');
 }
 function coachHtml(c) {
   if (!isSimple()) return '';
@@ -797,7 +813,7 @@ const TOUR = [
   { sel: '.ship', text: 'This is your spacecraft. Each mount takes one kind of part: engine at the bottom, antenna on top, wings on the sides, instruments and electronics in the body.' },
   { sel: '#shelf', text: 'The shelf. Drag a part onto a glowing mount, or just tap it to fit it. Parts marked ★ Goal help your science goal.' },
   { sel: '#coach', text: 'That\'s me! I always show the next thing to fix, and I can do it for you if you\'re stuck.' },
-  { sel: '[data-act="autoBuild"]', text: 'In a hurry? Auto-build makes a simple spacecraft that works. Then you can make it your own.' },
+  { sel: '[data-act="autoBuild"]', text: 'In a hurry? "Build it for me" makes a simple spacecraft that works. Then you can make it your own.' },
   { sel: '[data-act="toReview"]', text: 'When the meters look good, go to the launch review. Real missions have to pass one too. Good luck!' }
 ];
 let tourState = null;
@@ -873,7 +889,7 @@ function conopsHtml(c, m, plan) {
   add('🔧', 'Build and test', devYears(c), 'Assemble the spacecraft, shake it, bake it, check every part.', 'Phase C–D', 'build');
   add('🚀', 'Launch', 0, `On a ${c.lv.name}.`, 'Phase D', 'launch');
   if (c.cruise > 0) add('🛰️', 'Cruise', c.cruise, `${c.traj.name}.${m.hazard ? ' Watch for debris.' : ''}`, 'Phase E', 'cruise');
-  if (m.minigames.includes('insertion')) add('🔥', 'Arrive', 0, `Braking burn into ${c.orbit.name.toLowerCase()}.`, 'Phase E', 'launch');
+  if (m.minigames.includes('insertion')) add('🔥', 'Arrive', 0, `Braking burn into ${lc1(c.orbit.name)}.`, 'Phase E', 'launch');
   add('🔬', 'Science', plan.opsMonths / 12, `${plan.opsMonths} months, ${plural(c.passes, 'science pass')}.`, 'Phase E', 'sci');
   if (d.lander) add('🪂', 'Landing', 0, 'The lander flies down to the surface.', 'Phase E', 'launch');
   if (m.minigames.includes('tag') && d.sampler) add('🪨', 'Touch-and-go', 0, 'Grab a sample from the surface.', 'Phase E', 'launch');

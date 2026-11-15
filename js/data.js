@@ -19,6 +19,9 @@ const DIFF = {
 const DIFF_ORDER = ['rookie', 'cadet', 'engineer', 'director', 'sandbox'];
 const STAR_BONUS = 30; // $M added to later budgets per star earned
 
+// Lowercase just the first letter, so "Battery (600 Wh)" reads well mid-sentence and Earth, RTG and Wh keep their capitals.
+function lc1(t) { t = String(t); return /^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t; }
+
 // ---------- crew and co-op roles ----------
 const CREW = {
   vega:  { name: 'Director Vega',  job: 'Mission director',  color: '#ff6b9d' },
@@ -713,7 +716,7 @@ const HANDBOOK = [
     '<ul><li>There is no single right spacecraft. Light and cheap can beat big and fancy.</li>' +
     '<li>Leave some spare fuel and budget. Things go wrong on the way.</li>' +
     '<li>A big camera is no use if the antenna cannot send its pictures home.</li>' +
-    '<li>Stuck? On Beginner, press Auto-build and then improve the design yourself.</li></ul>' },
+    '<li>Stuck? Press "Build it for me" in the hangar, then improve the design yourself.</li></ul>' },
   { title: 'About this game', html:
     '<p><b>Poppy Pants in Space</b> was made by Team Poppy Pants for the NASA Space Apps Challenge "Space Mission Design Game". The engineering uses real relationships with simplified numbers. Rocket and part names are made up, and Ceruvia is fictional.</p>' +
     '<p><b>Use of AI:</b> the code, in-game text and synthesized sound were written with the help of Claude, an AI assistant made by Anthropic, as directed and reviewed by the team. No AI-generated images are used. All art is drawn in code.</p>' +

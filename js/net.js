@@ -320,7 +320,10 @@ SCREENS.review.html = function (...a) {
   const votes = `<div class="card vote"><h3>🗳️ Launch vote</h3><p class="small muted">Real flight directors poll every team before launch: "GO" or "NO GO". Everyone must vote GO.</p>
     <ul class="votes">${S.players.map(p => `<li class="${S.ready[p.uid] ? 'go' : ''}">${S.ready[p.uid] ? '✅' : '⏳'} ${esc(p.name)}${p.uid === S.uid ? ' (you)' : ''} <span class="small muted">${rolesOf(p.uid).map(r => ROLES[r].icon).join('')}</span></li>`).join('')}</ul>
     <div class="row end"><button class="btn ${mine ? 'ghost' : 'primary'} big" data-act="vote"${blocks ? ' disabled' : ''}>${mine ? 'Change to NO GO' : '✅ Vote GO'}</button></div></div>`;
-  return h.replace(/<button class="btn primary big" data-act="launch"[^>]*>🚀 Launch!<\/button>/, '').replace('<div class="row between wrap"><button class="btn ghost" data-act="toHangar">', votes + '<div class="row between wrap"><button class="btn ghost" data-act="toHangar">');
+  // In co-op nobody launches alone: every Launch button goes, and the vote sits right under the summary.
+  const out = h.replace(/<button class="btn primary big" data-act="launch"[^>]*>🚀 Launch!<\/button>/g, '');
+  return out.includes('<div class="card seg">') ? out.replace('<div class="card seg">', votes + '<div class="card seg">')
+    : out.replace('<div class="row between wrap"><button class="btn ghost" data-act="toHangar">', votes + '<div class="row between wrap"><button class="btn ghost" data-act="toHangar">');
 };
 
 // ---------- screens: online, lobby, watch ----------

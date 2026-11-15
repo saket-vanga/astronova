@@ -232,7 +232,7 @@ function reviewItems(build, plan, m, c) {
   const block = (title, why) => out.push({ level: 'block', title, why });
   const warn = (title, why) => out.push({ level: 'warn', title, why });
   const ok = (title, why) => out.push({ level: 'ok', title, why });
-  const pct = x => Math.round(x * 100) + '%';
+  const pct = x => x > 3 ? 'over 300%' : Math.round(x * 100) + '%';
 
   // Missing essentials
   if (!d.engine) block('No engine', 'Without an engine you cannot brake into orbit or steer. Add one to the engine mount.');
@@ -283,7 +283,7 @@ function reviewItems(build, plan, m, c) {
   if (m.needReturn && !d.capsule) warn('No return capsule', 'This mission needs to bring something home. Only a capsule survives reentry.');
   if (ids.includes('land') && !d.lander) warn('No lander', 'One objective needs a landing. Add the lander to the bottom mount.');
   if (ids.includes('tag') && !d.sampler) warn('No sample arm', 'One objective needs a sample. Add the sample collector arm to a bay.');
-  if (m.crisis && !(d.rtg || d.batteryWh >= 2000 || d.fuelcell)) warn('Weak backup power', `A ${m.crisis.name.toLowerCase()} is coming. An RTG, a big battery or a fuel cell would keep the lights on.`);
+  if (m.crisis && !(d.rtg || d.batteryWh >= 2000 || d.fuelcell)) warn('Weak backup power', `A ${lc1(m.crisis.name)} is coming. An RTG, a big battery or a fuel cell would keep the lights on.`);
 
   // Instruments vs orbit
   if (!c.orbit.detail) {
@@ -296,8 +296,8 @@ function reviewItems(build, plan, m, c) {
   // Prime goal
   if (plan.goal) {
     const g = goalStatus(build, plan, m, plan.goal), obj = m.objectives.find(o => o.id === plan.goal);
-    if (!g.ok) warn('Prime goal at risk', `This design cannot "${obj.text.toLowerCase()}". ${GOAL_NEEDS[plan.goal].why}`);
-    else ok('Prime goal', `The design can "${obj.text.toLowerCase()}".`);
+    if (!g.ok) warn('Prime goal at risk', `This design cannot "${lc1(obj.text)}". ${GOAL_NEEDS[plan.goal].why}`);
+    else ok('Prime goal', `The design can "${lc1(obj.text)}".`);
   }
   return out;
 }
