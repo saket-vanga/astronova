@@ -1,0 +1,169 @@
+<!doctype html>
+<!-- Written with the help of Claude, an AI assistant made by Anthropic, as directed and reviewed by the team. See "Use of AI" in README.md. Licensed under Apache-2.0 (see LICENSE). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AstroNova: project demo (Team Hubble Huddle)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Bungee&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+  /* Written with the help of Claude, an AI assistant made by Anthropic, as directed and reviewed by the team. */
+  :root { --ink:#070a1f; --text:#f2f3ff; --muted:#b4bdf0; --gold:linear-gradient(135deg,#ffe08a,#ffb84d 55%,#ff8f5a); --holo:linear-gradient(100deg,#ffe08a 0%,#ffb84d 18%,#7af5dc 42%,#4cc9f0 60%,#b69cff 80%); --edge:rgba(150,170,255,.25); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #05071a; color: var(--text); font: 600 22px/1.4 Nunito, system-ui, sans-serif; }
+  .slide { width: 1600px; height: 900px; margin: 0 auto 40px; position: relative; overflow: hidden; padding: 64px 80px;
+    background: radial-gradient(900px 600px at 10% 0%, rgba(182,156,255,.28), transparent 60%), radial-gradient(900px 600px at 100% 100%, rgba(76,201,240,.22), transparent 60%), radial-gradient(1400px 900px at 50% -20%, #1b1f5e, #0b0f2e 45%, #05071a); }
+  .slide::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--holo); }
+  .num { position: absolute; right: 40px; bottom: 22px; font: 800 18px Nunito; color: var(--muted); }
+  .brand { position: absolute; left: 40px; bottom: 20px; font: 400 20px Bungee; background: var(--gold); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h1 { font: 400 112px/1 Bungee; margin: 0; background: var(--holo); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h2 { font: 800 54px/1.1 "Baloo 2", Nunito; margin: 0 0 14px; }
+  .eyebrow { font: 800 20px Nunito; letter-spacing: .16em; text-transform: uppercase; color: #7af5dc; margin-bottom: 10px; }
+  .lede { font-size: 28px; color: #d6dcff; max-width: 1100px; }
+  .shot { border-radius: 18px; border: 1px solid var(--edge); box-shadow: 0 20px 50px rgba(0,0,0,.55); display: block; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { background: linear-gradient(160deg, rgba(36,44,112,.75), rgba(16,20,58,.8)); border: 1px solid var(--edge); border-radius: 20px; padding: 20px 24px; }
+  .card b { display: block; font: 800 26px "Baloo 2", Nunito; margin-bottom: 4px; }
+  .card p { margin: 0; color: #cfd6ff; font-size: 20px; }
+  .pill { display: inline-block; padding: 8px 18px; border-radius: 99px; background: rgba(255,255,255,.08); border: 1px solid var(--edge); font-weight: 800; margin: 0 8px 8px 0; font-size: 20px; }
+  .btn { display: inline-block; padding: 14px 30px; border-radius: 16px; background: var(--gold); color: #2a1a05; font: 800 26px "Baloo 2", Nunito; text-decoration: none; }
+  ul.clean { list-style: none; padding: 0; margin: 0; } ul.clean li { margin: 10px 0; padding-left: 34px; position: relative; } ul.clean li::before { content: "✦"; position: absolute; left: 0; color: #ffe08a; }
+  .flow { display: flex; gap: 14px; align-items: stretch; margin: 26px 0; }
+  .flow div { flex: 1; text-align: center; padding: 16px 10px; border-radius: 16px; border: 1px solid var(--edge); background: rgba(255,255,255,.05); font: 800 22px "Baloo 2", Nunito; }
+  .flow div span { display: block; font: 600 16px Nunito; color: var(--muted); }
+  .flow .on { background: var(--gold); color: #2a1a05; border-color: transparent; } .flow .on span { color: #4a3209; }
+  a { color: #7af5dc; }
+  @media print { body { background: #05071a; } .slide { margin: 0; page-break-after: always; } }
+  @page { size: 1600px 900px; margin: 0; }
+  @media screen and (max-width: 1640px) { .slide { zoom: calc(100vw / 1640px); } }
+</style>
+</head>
+<body>
+
+<!-- 1. Title -->
+<section class="slide" style="padding:0;text-align:center">
+  <img src="../screenshots/banner.jpg" alt="AstroNova title screen" style="width:100%;height:545px;object-fit:cover;object-position:top;display:block;-webkit-mask-image:linear-gradient(#000 88%,transparent);mask-image:linear-gradient(#000 88%,transparent)">
+  <div style="margin-top:34px;position:relative">
+    <p class="lede" style="margin:0 auto 22px;font-size:36px;color:#fff">Design a spacecraft. Fly the mission. Answer the signal.</p>
+    <div class="eyebrow" style="margin-bottom:22px">NASA Space Apps Challenge 2026 · Space Mission Design Game</div>
+    <span class="pill">🔭 Team Hubble Huddle</span><span class="pill">📍 Singapore</span><span class="pill">▶ saket-vanga.github.io/astronova</span>
+  </div>
+  <div class="num">1 / 7</div>
+</section>
+
+<!-- 2. Team and challenge -->
+<section class="slide">
+  <div class="eyebrow">The team and the challenge</div>
+  <h2>Team Hubble Huddle</h2>
+  <div class="grid3" style="margin:22px 0 40px">
+    <div class="card"><b>Saket Reddy Vanga</b><p>Team owner</p></div>
+    <div class="card"><b>Golla Naishika</b></div>
+    <div class="card"><b>Pulkit Kayal</b></div>
+    <div class="card"><b>Arnav Masiragani</b></div>
+    <div class="card"><b>Supriya Prashant Sutar</b></div>
+    <div class="card"><b>Arunkumar Kavin Selvan</b></div>
+  </div>
+  <h2 style="font-size:40px">Challenge: Space Mission Design Game</h2>
+  <p class="lede">Real missions juggle science goals, mass, power, budget, communications and orbits. For most students those trade-offs stay abstract. We built a game where you plan, build and fly a whole mission and see how every choice shapes the result.</p>
+  <div class="brand">ASTRONOVA</div><div class="num">2 / 7</div>
+</section>
+
+<!-- 3. The idea -->
+<section class="slide">
+  <div class="eyebrow">The idea</div>
+  <h2>A fading signal from an icy moon</h2>
+  <p class="lede">A radio pulse is coming from Ceruvia, 1.4 billion km away. To earn the trip, your team flies five missions, each teaching a new idea.</p>
+  <div class="flow">
+    <div>🌍 Earth orbit<span>mass, power, budget</span></div>
+    <div>🌕 The Moon<span>far side, landing</span></div>
+    <div>🪨 Asteroid<span>sample return</span></div>
+    <div>🔴 Mars<span>dust storms, RTGs</span></div>
+    <div class="on">🧊 Ceruvia<span>everything at once</span></div>
+  </div>
+  <div class="grid2">
+    <img class="shot" src="../screenshots/mission-control.jpg" alt="Mission control" style="width:100%">
+    <ul class="clean" style="font-size:24px">
+      <li>No single right answer: a heavy design works with a bigger rocket, a cheap one with a slower route.</li>
+      <li>Beginner mode is very hard to fail; Flight Director is a real challenge.</li>
+      <li>Runs in any browser, on phones too. No install, no account.</li>
+    </ul>
+  </div>
+  <div class="brand">ASTRONOVA</div><div class="num">3 / 7</div>
+</section>
+
+<!-- 4. User experience: plan like a real team -->
+<section class="slide">
+  <div class="eyebrow">How it works</div>
+  <h2>Plan it like a real mission team</h2>
+  <div class="flow">
+    <div class="on">1 · Science goal<span>CML 1–2</span></div><div>2 · Design<span>CML 3 trade space</span></div><div>3 · Review<span>CML 4 point design</span></div><div>4 · Fly<span>operations</span></div><div>5 · Report<span>lessons learned</span></div>
+  </div>
+  <div class="grid2">
+    <div><img class="shot" src="../screenshots/hangar.jpg" alt="Hangar" style="width:100%;height:440px;object-fit:cover;object-position:top"><p style="margin:10px 0 0;color:#cfd6ff;font-size:20px"><b>Hangar:</b> 32 parts, 6 live meters (mass, fuel, power, budget, data, time) and Ollie the coach.</p></div>
+    <div><img class="shot" src="../screenshots/review.jpg" alt="Launch review" style="width:100%;height:440px;object-fit:cover;object-position:top"><p style="margin:10px 0 0;color:#cfd6ff;font-size:20px"><b>Launch review:</b> checks grouped into launch, space, ground and user segments.</p></div>
+  </div>
+  <div class="brand">ASTRONOVA</div><div class="num">4 / 7</div>
+</section>
+
+<!-- 5. Fly and do science -->
+<section class="slide">
+  <div class="eyebrow">Fly it, then do the science</div>
+  <h2>Six flight minigames, real consequences</h2>
+  <div class="grid3" style="grid-template-columns:repeat(4,1fr);gap:18px;margin:18px 0 22px">
+    <img class="shot" src="../screenshots/game-launch.jpg" alt="Launch" style="width:100%">
+    <img class="shot" src="../screenshots/game-cruise.jpg" alt="Cruise" style="width:100%">
+    <img class="shot" src="../screenshots/game-landing.jpg" alt="Landing" style="width:100%">
+    <img class="shot" src="../screenshots/game-reentry.jpg" alt="Reentry" style="width:100%">
+  </div>
+  <div class="grid2" style="align-items:start">
+    <img class="shot" src="../screenshots/science.jpg" alt="Science operations" style="width:100%;height:300px;object-fit:cover;object-position:top">
+    <ul class="clean" style="font-size:22px;margin-top:0">
+      <li>Launch, debris field, orbit insertion, landing, touch-and-go and reentry.</li>
+      <li>Your design changes the flight: heavy craft steer slowly, shields soak up hits.</li>
+      <li>Choose where to scan, survive a power emergency, then read a report with real missions like yours.</li>
+      <li>Co-op for 2–4 players with crew roles and a GO / NO GO vote.</li>
+    </ul>
+  </div>
+  <div class="brand">ASTRONOVA</div><div class="num">5 / 7</div>
+</section>
+
+<!-- 6. NASA data and resources -->
+<section class="slide">
+  <div class="eyebrow">NASA data and resources</div>
+  <h2>Built on how NASA plans missions</h2>
+  <div class="grid3" style="margin-top:22px">
+    <div class="card"><b>Design &amp; Develop Science Missions</b><p>Science goal first; the review is split into launch, space, ground and user segments.</p></div>
+    <div class="card"><b>JPL Concept Maturity Levels</b><p>The phase bar from idea (CML 1) to point design (CML 4).</p></div>
+    <div class="card"><b>Goddard Mission Design Lab</b><p>A trade study comparing up to three designs.</p></div>
+    <div class="card"><b>GMAT &amp; Mission Viz</b><p>Rocket equation, mission timeline and trajectory diagrams.</p></div>
+    <div class="card"><b>Webb "Build It Yourself"</b><p>Goals show who uses the data; real missions like yours.</p></div>
+    <div class="card"><b>CubeSat 101 · CSA games</b><p>Small-sat power and data budgets; a beginner-friendly tone.</p></div>
+  </div>
+  <p class="lede" style="margin-top:26px;font-size:22px">Real physics, simplified: the Tsiolkovsky rocket equation, inverse-square sunlight, RTG decay and orbital shadow. Facts from 14 real missions, including Landsat 9, OSIRIS-REx, Perseverance and Europa Clipper.</p>
+  <div class="brand">ASTRONOVA</div><div class="num">6 / 7</div>
+</section>
+
+<!-- 7. Impact and what's next -->
+<section class="slide">
+  <div class="eyebrow">Impact and what's next</div>
+  <h2>Every student can be a mission designer</h2>
+  <div class="grid2" style="margin-top:20px">
+    <ul class="clean" style="font-size:24px">
+      <li><b>Learn by doing:</b> trade-offs become choices you feel, not formulas you memorise.</li>
+      <li><b>For everyone:</b> plain language, a coach, autopilots, keyboard or touch.</li>
+      <li><b>Open:</b> Apache-2.0, plain HTML, CSS and JavaScript, nothing to install.</li>
+      <li><b>Next:</b> a classroom mode, more targets (Europa, Titan) and real ephemeris data for trajectories.</li>
+    </ul>
+    <div style="text-align:center">
+      <img src="../screenshots/phone-title.jpg" alt="AstroNova on a phone" style="height:470px;border-radius:26px;border:1px solid var(--edge);box-shadow:0 20px 50px rgba(0,0,0,.55)">
+    </div>
+  </div>
+  <p style="margin-top:24px"><a class="btn" href="https://saket-vanga.github.io/astronova/">▶ Play: saket-vanga.github.io/astronova</a> &nbsp; <span class="pill">Code: github.com/saket-vanga/astronova</span></p>
+  <p style="font-size:16px;color:var(--muted);margin:6px 0 0">Code, in-game text and synthesized audio were written with the help of Claude (Anthropic), directed and reviewed by the team. No AI-generated images. Not affiliated with or endorsed by NASA.</p>
+  <div class="brand">ASTRONOVA</div><div class="num">7 / 7</div>
+</section>
+
+</body>
+</html>
