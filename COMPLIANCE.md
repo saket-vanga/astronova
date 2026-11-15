@@ -2,7 +2,7 @@
 
 Taken from the 2026 Space Apps Participant Terms & Conditions, the Project Submission Guide, the Judging & Awards Guide, the Participant FAQs, and the challenge page with its Resources tab. Check the current pages before submitting, because rules can change.
 
-## What the finished game must have (all of these were true for the reference game)
+## What the finished game must have (all checked for Poppy Pants in Space on 2026-11-15)
 
 - [x] **Open source license**: Apache-2.0 in `LICENSE` (GitHub detects it), and the README "License" section.
 - [x] **AI use disclosed** (the rules call it "Super Intelligence"):
