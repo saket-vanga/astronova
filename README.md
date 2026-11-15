@@ -124,7 +124,7 @@ There is no single right answer. A heavy, power-hungry design can work if you pa
   </tr>
 </table>
 
-<p align="center"><a href="https://www.spaceappschallenge.org/2026/find-a-team/poppy-pants/?tab=details">Our team page on the NASA Space Apps Challenge site</a></p>
+<p align="center"><a href="https://www.spaceappschallenge.org/2026/find-a-team/poppy-pants/">Our team page on the NASA Space Apps Challenge site</a></p>
 
 ---
 
