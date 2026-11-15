@@ -668,11 +668,10 @@ The Space Apps rules call this "Super Intelligence". Here is how we used it.
 
 We approved each build step before it started, playtested and reviewed the result, and decided what to change.
 
-**What the AI wrote:** Claude, an AI assistant made by Anthropic, used through Claude Code, wrote:
+**What the AI wrote:** Claude, an AI assistant made by Anthropic, used through Claude Code, assisted us in writing:
 - the code (HTML, CSS and JavaScript)
-- the in-game text (dialogue, part descriptions, help and handbook)
 - the procedural sound effects and chiptune music, synthesized in code with the Web Audio API
-- this documentation
+
 
 It also tuned the numbers, simulated the minigames to balance their difficulty, and tested each step in a browser.
 
