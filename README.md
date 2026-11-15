@@ -58,7 +58,7 @@ There is no single right answer. A heavy, power-hungry design can work if you pa
 
 1. Open the game and press **Play**.
 2. Type a nickname. Please don't use your real name.
-3. Choose **Beginner**. It gives you extra money, fills the fuel tank for you, adds on-screen hints, and has Ollie the coach show you the next step.
+3. Choose **Beginner**. It gives you lots of money, no surprise setbacks, autopilots that fly with you, on-screen hints, and Ollie the coach to show you every step. It's hard to fail.
 4. On **Mission control**, press the glowing mission marked **▶ Start here**.
 
 From then on, every screen tells you what to do next.
@@ -182,7 +182,7 @@ Random **events** can happen on the way: solar storms, part failures, a fuel lea
 
 | Level | Budget | Events per mission | Retries | Piloting | Extras |
 |---|---|---|---|---|---|
-| **Beginner** (recommended) | ×1.5 | 1 | 3 | Very forgiving | Coach, auto fuel, "Build it for me" on the welcome screen, on-screen hints, auto-throttle at Max-Q, landing auto-brake, self-steadying reentry with a backup parachute timer. Expert parts are hidden. |
+| **Beginner** (recommended) | ×1.8 | 0 | 5 | Autopilots: hard to fail | Coach, auto fuel, "Build it for me", on-screen hints, two bonus science passes, every scan finds what it can, a practice shield (debris never breaks parts), no fuel penalties, and a backup battery in the power emergency. The launch autopilot holds the line, the engine cuts off in the green, the lander flies itself to the pad, touch-and-go has no boulders, and the reentry heat shield always holds. Expert parts are hidden. |
 | **Cadet** | ×1.3 | 1 | 2 | Forgiving | On-screen hints |
 | **Engineer** | ×1 | 2 | 1 | Realistic | |
 | **Flight Director** | ×0.85 | 3 | 0 | Hard | Steep ground can tip a lander |

@@ -5,8 +5,8 @@
 
 // ---------- difficulty ----------
 const DIFF = {
-  rookie:   { label: 'Beginner',        budgetMult: 1.5,  events: 1, retries: 3, tol: 1.7,  simple: true,
-              desc: 'Start here. Extra money, fuel fills itself, a coach tells you what to do next, and easy piloting.' },
+  rookie:   { label: 'Beginner',        budgetMult: 1.8,  events: 0, retries: 5, tol: 1.9,  simple: true,
+              desc: 'Start here. Lots of money, no surprises, a coach for every step, and autopilots that help you fly. Hard to fail.' },
   cadet:    { label: 'Cadet',           budgetMult: 1.3,  events: 1, retries: 2, tol: 1.4,
               desc: 'More money, gentler piloting, two retries on landings.' },
   engineer: { label: 'Engineer',        budgetMult: 1,    events: 2, retries: 1, tol: 1,

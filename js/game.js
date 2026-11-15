@@ -336,7 +336,7 @@ STEPS.doLaunch = function () {
   }), res => {
     const r = S.run;
     r.scores.launch = res.score;
-    const lost = Math.round(r.c.fuel * 0.04 * (1 - res.acc));
+    const lost = isSimple() ? 0 : Math.round(r.c.fuel * 0.04 * (1 - res.acc));
     if (lost > 0) { r.fuelSpare -= lost; log(`Launch: ${fmtPct(res.acc)} on the line. Steering wobbles burned ${fmtKg(lost)} of fuel.`, res.acc > 0.7 ? 'info' : 'warn'); }
     else log('Launch: a clean gravity turn.', 'good');
     eventChain(afterLaunch);
@@ -353,7 +353,8 @@ STEPS.doCruise = function () {
   }), res => {
     const r = S.run;
     r.scores.dodge = res.score;
-    let hits = res.hits;
+    let hits = isSimple() ? 0 : res.hits;   // Beginner: the practice shield takes every bump
+    if (isSimple() && res.hits) log(`Cruise: the practice shield took ${plural(res.hits, 'bump')}. Nothing broke.`, 'good');
     const absorbed = Math.min(hits, r.d.shields * PARTS.shield.hits);
     if (absorbed) { r.d.shields -= Math.ceil(absorbed / PARTS.shield.hits); hits -= absorbed; log(`Cruise: your debris shield absorbed ${plural(absorbed, 'hit')}.`, 'good'); }
     for (let i = 0; i < hits; i++) log('Cruise: debris hit! ' + damage(r), 'bad');
@@ -368,7 +369,7 @@ STEPS.doInsertion = function () {
   }), res => {
     const r = S.run;
     r.scores.insertion = res.score;
-    const extra = Math.round(r.c.fuelReq * res.err * 0.25);
+    const extra = isSimple() ? 0 : Math.round(r.c.fuelReq * res.err * 0.25);
     r.fuelSpare -= extra;
     log(extra > 0 ? `Orbit insertion: off by ${fmtPct(res.err)}. Fixing the orbit used ${fmtKg(extra)} of fuel.` : 'Orbit insertion: right on the line.', res.err < 0.1 ? 'good' : 'warn');
     arrive();
@@ -377,7 +378,8 @@ STEPS.doInsertion = function () {
 
 function arrive() {
   const r = S.run, c = r.c, m = S.mission;
-  let passes = c.passes - r.passPenalty;
+  let passes = c.passes - r.passPenalty + (isSimple() ? 2 : 0);   // Beginner: two bonus passes
+  if (r.fuelSpare < 0 && isSimple()) { r.fuelSpare = 0; r.returnShort = false; }
   if (r.fuelSpare < 0) {
     if (m.needReturn) {
       r.returnShort = r.fuelSpare < -0.05 * c.fuelReq;
@@ -410,7 +412,7 @@ function doPass(siteId, scanMult, hits) {
   if (!site || r.passesLeft <= 0) return;
   scanMult = scanMult || 1;
   r.passesLeft--;
-  const got = [], missed = [], pFind = 0.55 + 0.4 * r.c.duty;
+  const got = [], missed = [], pFind = isSimple() ? 1 : 0.55 + 0.4 * r.c.duty;   // Beginner: a pass always finds what it can
   for (const inst of r.d.instruments) {
     const f = site.finds[inst];
     if (!f || r.finds.some(x => x.id === f.id)) continue;
@@ -503,7 +505,7 @@ const CRISIS_LOADS = [
   { k: 'inst', name: 'Instruments', icon: '🔬', why: 'Keep watching the storm. Survive with them on for bonus science.' }
 ];
 function initCrisis() {
-  const r = S.run, c = r.c, cap = Math.max(50, r.d.batteryWh);
+  const r = S.run, c = r.c, cap = Math.max(50, r.d.batteryWh) * (isSimple() ? 3 : 1);   // Beginner: a backup battery triples the reserve
   r.crisis = { turn: 1, battery: cap, cap, fc: 0, fcUsed: false, cold: 0, coldHit: false,
     on: { heater: true, adcs: true, recorder: true, tx: true, inst: true }, instAll: true,
     packets: 2 + Math.round((1 - c.dataRatio) * 4) + Math.min(2, Math.floor(r.finds.length / 3)), sent: 0, lost: 0, dead: false, done: false,
@@ -531,9 +533,11 @@ function crisisNextTurn() {
   } else x.cold = 0;
   if (!x.on.inst) x.instAll = false;
   const unsent = x.packets - x.sent - x.lost;
-  if (!x.on.recorder && unsent > 0) { x.lost += unsent; note.push(`Recorder off: ${plural(unsent, 'packet')} of unsent data erased!`); }
-  else if (x.on.tx && x.on.adcs && unsent > 0) { x.sent++; note.push('Sent a packet of data home. 📡'); }
+  if (!x.on.recorder && unsent > 0 && isSimple()) note.push('Recorder off, but the backup memory kept your data safe.');
+  else if (!x.on.recorder && unsent > 0) { x.lost += unsent; note.push(`Recorder off: ${plural(unsent, 'packet')} of unsent data erased!`); }
+  else if (x.on.tx && (x.on.adcs || isSimple()) && unsent > 0) { x.sent++; note.push('Sent a packet of data home. 📡'); }
   else if (x.on.tx && !x.on.adcs && unsent > 0) note.push('The transmitter is on, but without pointing the antenna misses Earth.');
+  if (x.battery <= 0 && isSimple()) { x.battery = x.cap * 0.25; note.push('The backup battery kicked in. Phew!'); }
   if (x.battery <= 0) {
     x.dead = true; const left = x.packets - x.sent - x.lost; x.lost += left;
     note.push('The battery is flat! The computer browned out' + (left ? ` and ${plural(left, 'packet')} of data were lost.` : '.'));
@@ -615,17 +619,32 @@ function siteNew(site) {
   return plume + Object.entries(site.finds).filter(([k, f]) => !r.finds.some(x => x.id === f.id) &&
     (k === 'land' ? false : r.d.instruments.includes(k) && canSee(k, site, orbit))).length;
 }
+// The landing site that would complete the most objectives (the prime goal counts double).
+function bestLandSite() {
+  const r = S.run, m = S.mission;
+  let best = null, bestScore = -1;
+  for (const site of m.sites) {
+    const f = site.finds.land;
+    const fake = Object.assign({}, r, { landed: true, finds: f && !r.finds.some(x => x.id === f.id) ? r.finds.concat([Object.assign({}, f, { site: site.id, inst: 'lander' })]) : r.finds });
+    const R = liveR(fake);
+    const score = m.objectives.reduce((t, o) => t + (o.check(R) ? (o.id === r.plan.goal ? 2 : 1) : 0), 0) + (f ? 0.1 : 0);
+    if (score > bestScore) { bestScore = score; best = site; }
+  }
+  return best;
+}
 SCREENS.explore = {
   html() {
     const r = S.run, m = S.mission, orbit = m.orbits[r.plan.orbit];
     const site = m.sites.find(s => s.id === S.selSite) || m.sites[0];
     const band = (90 - orbit.maxLat) / 180 * 100;
     const fresh = {}; m.sites.forEach(s => { fresh[s.id] = siteNew(s); });
+    const canLand = m.minigames.includes('landing') && r.d.lander && !r.landerUsed;
+    const landAt = canLand ? bestLandSite() : null;
     const best = m.sites.slice().sort((a, b) => fresh[b.id] - fresh[a.id])[0];
     const dots = m.sites.map(s => {
       const n = r.finds.filter(f => f.site === s.id).length;
       return `<button class="sitedot${s.id === site.id ? ' sel' : ''}${n ? ' found' : ''}${fresh[s.id] && r.passesLeft ? ' todo' : ''}" style="left:${s.x * 100}%;top:${(90 - s.lat) / 180 * 100}%"
-        data-act="selSite" data-arg="${s.id}" aria-label="${esc(s.name)}${fresh[s.id] ? ', new things to find' : ''}"><span>${n || ''}</span><em${s.lat < -30 ? ' class="up"' : ''}>${esc(s.name)}</em></button>`;
+        data-act="selSite" data-arg="${s.id}" aria-label="${esc(s.name)}${fresh[s.id] ? ', new things to find' : ''}${landAt && landAt.id === s.id ? ', best landing spot' : ''}"><span>${n || (landAt && landAt.id === s.id && !Object.values(fresh).some(Boolean) ? '🛬' : '')}</span><em${s.lat < -30 ? ' class="up"' : ''}>${esc(s.name)}</em></button>`;
     }).join('');
     const rows = Object.entries(site.finds).map(([k, f]) => {
       const have = r.finds.some(x => x.id === f.id);
@@ -640,7 +659,6 @@ SCREENS.explore = {
       return `<li><span>${who}</span><span class="small">${have ? esc(f.title) : '??? · ' + esc(clue)}</span><span class="small">${state}</span></li>`;
     }).join('');
     const sciRole = canAct('sci');
-    const canLand = m.minigames.includes('landing') && r.d.lander && !r.landerUsed;
     const canTag = m.minigames.includes('tag') && r.d.sampler && !r.tagOk;
     const last = S.lastPass && S.lastPass.site === site.id && S.lastPass.missed.length
       ? `<p class="small muted">Last pass: ${S.lastPass.missed.map(x => esc(x.inst === 'sampler' ? 'sample arm' : PARTS[x.inst].short) + ' ' + x.why).join('; ')}.</p>` : '';
@@ -651,7 +669,8 @@ SCREENS.explore = {
     let todo;
     if (r.passesLeft <= 0) todo = (canLand || canTag) ? `No passes left. You can still ${canLand ? 'land' : 'grab a sample'}, or press <b>Finish science</b>.` : 'No passes left. Press <b>Finish science</b> to see how you did.';
     else if (!fresh[site.id] && best && fresh[best.id]) todo = `Nothing new for your instruments at ${esc(site.name)}. Tap <b>${esc(best.name)}</b> on the map instead.`;
-    else if (!fresh[site.id]) todo = (canLand || canTag) ? `Nothing ${r.finds.length ? 'more ' : ''}for your instruments to find from orbit. Pick a spot and press ${canLand ? '<b>🛬 Land here</b>' : '<b>🦾 Touch-and-go here</b>'}.` : `Nothing ${r.finds.length ? 'more ' : ''}for your instruments to find. Press <b>Finish science</b>.`;
+    else if (!fresh[site.id] && canLand && landAt && landAt.id !== site.id) todo = `Nothing ${r.finds.length ? 'more ' : ''}to scan here. The best place to land is <b>${esc(landAt.name)}</b>: tap it on the map.`;
+    else if (!fresh[site.id]) todo = (canLand || canTag) ? `Nothing ${r.finds.length ? 'more ' : ''}for your instruments to find from orbit. Press ${canLand ? '<b>🛬 Land here</b>' : '<b>🦾 Touch-and-go here</b>'}.` : `Nothing ${r.finds.length ? 'more ' : ''}for your instruments to find. Press <b>Finish science</b>.`;
     else todo = `Press <b>🔭 Science pass here</b> to scan ${esc(site.name)}, or tap another glowing spot on the map. Each scan uses one pass.`;
     return `<div class="row between wrap"><div><div class="eyebrow">Step 4 · Science operations</div><h2>${FACES.planet[m.planet]} Exploring ${esc(m.target)}</h2></div>
       <div class="row gap wrap"><span class="pill">🛰️ ${plural(r.passesLeft, 'pass')} left</span><span class="pill">📶 ${fmtPct(findingFrac())} of data home</span><span class="pill">🔭 ${plural(r.finds.length, 'discovery')}</span></div></div>
@@ -664,7 +683,7 @@ SCREENS.explore = {
           <ul class="findlist">${rows}</ul>${last}
           <div class="row gap wrap">
             <button class="btn ${fresh[site.id] ? 'primary' : 'ghost'}" data-act="pass"${r.passesLeft > 0 && sciRole && fresh[site.id] ? '' : ' disabled'}>${fresh[site.id] || !r.passesLeft ? '🔭 Science pass here' : '🔭 Nothing new to scan here'}</button>
-            ${canLand ? `<button class="btn ghost" data-act="land"${sciRole ? '' : ' disabled'}>🛬 Land here</button>` : ''}
+            ${canLand ? `<button class="btn ${landAt && landAt.id === site.id && !fresh[site.id] ? 'primary' : 'ghost'}" data-act="land"${sciRole ? '' : ' disabled'}>🛬 Land here${landAt && landAt.id === site.id ? ' ⭐' : ''}</button>` : ''}
             ${canTag ? `<button class="btn ghost" data-act="tag"${sciRole ? '' : ' disabled'}>🦾 Touch-and-go here</button>` : ''}
           </div>
           <h3 class="mt">⭐ Objectives</h3><ul class="objlist live">${objs}</ul></div></div>
@@ -683,7 +702,7 @@ SCREENS.crisis = {
     const unsent = x.packets - x.sent - x.lost;
     const fc = r.d.fuelcell ? `<button class="btn ghost" data-act="crisisFuelCell"${pw && !x.fcUsed && !x.done ? '' : ' disabled'}>🧪 ${x.fcUsed ? `Fuel cell running (${Math.round(x.fc)} Wh left)` : `Start the fuel cell (+${r.d.fuelcell} Wh)`}</button>` : '';
     return `<div class="narrow"><div class="card crisis"><div class="eyebrow">Emergency · ${esc(ROLES.pwr.name)}</div><h2>⚡ ${esc(cr.name)}!</h2><p>${esc(cr.text)}</p>
-      ${x.done ? '' : `<p class="howto"><b>Your job:</b> keep the 🔋 battery above zero for ${cr.turns} turns. Switch systems off to save power, and switch the transmitter on when you can afford it to send data home.</p>`}
+      ${x.done ? '' : `<p class="howto"><b>Your job:</b> keep the 🔋 battery above zero for ${cr.turns} turns. ${isSimple() ? 'On Beginner a backup battery keeps you safe, so just leave everything on and press <b>End turn</b> until the storm passes.' : 'Switch systems off to save power, and switch the transmitter on when you can afford it to send data home.'}</p>`}
       <div class="crisis-stats">
         <div><span class="small muted">Turn</span><b class="mono">${Math.min(x.turn, cr.turns)} / ${cr.turns}</b></div>
         <div><span class="small muted">Making</span><b class="mono">${fmtW(p.gen)}</b></div>
@@ -994,7 +1013,7 @@ const ACT = {
     const here = S.mission.sites.find(x => x.id === S.selSite);
     if (here && !siteNew(here)) { toast('Nothing new to find here. Pick a glowing spot.'); return; }
     const site = S.selSite, d = S.run.d;   // capture before the async scan
-    runScan({ tol: DIFF[S.difficulty].tol, precise: !!(d.adcs && d.adcs.spare) }, (mult, hits) => doPass(site, mult, hits));
+    runScan({ tol: DIFF[S.difficulty].tol, precise: !!(d.adcs && d.adcs.spare), easy: isSimple() }, (mult, hits) => doPass(site, mult, hits));
   },
   land() { if (!canAct('sci')) return; runStep('doLanding', S.selSite); },
   tag() { if (!canAct('sci')) return; runStep('doTag', S.selSite); },

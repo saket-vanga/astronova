@@ -131,7 +131,8 @@ GAMES.launch = {
     }
     s.drift = clamp((s.drift + (Math.random() - 0.5) * dt * 40 * (1 + heavy) * (o.assist ? 0.6 : 1)) * (1 - dt * 0.7), -12, 12);
     const steer = (K.right ? 1 : 0) - (K.left ? 1 : 0);
-    s.pitch = clamp(s.pitch + (steer * 40 * ag + s.drift) * dt, -15, 105);
+    s.pitch = clamp(s.pitch + (steer * 40 * ag + s.drift * (o.assist ? 0.3 : 1)) * dt, -15, 105);
+    if (o.assist && !steer) s.pitch += (this.ideal(s.alt + 3) - s.pitch) * Math.min(1, dt * 1.6);   // Beginner autopilot holds the line
     s.alt += s.throttle * (4.8 - 1.5 * heavy) * dt;
     const dev = Math.abs(s.pitch - this.ideal(s.alt)), band = 7 * (o.tol || 1);
     s.dev = s.pitch - this.ideal(s.alt); s.band = band;
@@ -209,20 +210,21 @@ GAMES.dodge = {
     s.y = clamp(s.y + ((K.down ? 1 : 0) - (K.up ? 1 : 0)) * sp * 0.7 * dt, s.h * 0.45, s.h - 24);
     s.spawnT -= dt;
     if (s.spawnT <= 0 && s.t < s.dur - 1.5) {
-      s.spawnT = 1 / (0.7 + 1.7 * (o.hazard || 0.5)) * rnd(0.6, 1.4);
+      s.spawnT = 1 / (0.7 + 1.7 * (o.hazard || 0.5)) * rnd(0.6, 1.4) * (o.assist ? 2.2 : 1);
       const r = rnd(8, 18);
-      s.debris.push({ x: rnd(r, s.w - r), y: -r, r, vy: rnd(110, 200) * (1 + s.t / 40) / Math.pow(tol, 0.3), vx: rnd(-30, 30), a: 0, va: rnd(-3, 3),
+      s.debris.push({ x: rnd(r, s.w - r), y: -r, r, vy: rnd(110, 200) * (1 + s.t / 40) / Math.pow(tol, 0.3) * (o.assist ? 0.7 : 1), vx: rnd(-30, 30), a: 0, va: rnd(-3, 3),
         pts: Array.from({ length: 7 }, (_, i) => ({ a: i / 7 * Math.PI * 2, d: rnd(.65, 1) })) });
     }
     s.fixT -= dt;
     if (s.fixT <= 0 && s.t < s.dur - 2) { s.fixT = rnd(1.6, 2.6); s.fixes.push({ x: rnd(20, s.w - 20), y: -10, vy: 90 }); }
-    const hx = s.hw * 0.75 / Math.sqrt(tol), hy = 12 / Math.sqrt(tol);
+    const shrink = o.assist ? 0.65 : 1, hx = s.hw * 0.75 / Math.sqrt(tol) * shrink, hy = 12 / Math.sqrt(tol) * shrink;
     for (const d of s.debris) {
       d.y += d.vy * dt; d.x += d.vx * dt; d.a += d.va * dt;
       const dx = (d.x - s.x) / (hx + d.r * 0.8), dy = (d.y - s.y) / (hy + d.r * 0.8);
       if (!d.dead && s.inv <= 0 && dx * dx + dy * dy < 1) {
         d.dead = true; s.hits++; s.inv = 1;
-        if (s.shield > 0) { s.shield--; s.msg = 'Shield absorbed it!'; } else s.msg = 'Hit! A part is damaged.';
+        if (o.assist) s.msg = 'Bump! The practice shield held.';
+        else if (s.shield > 0) { s.shield--; s.msg = 'Shield absorbed it!'; } else s.msg = 'Hit! A part is damaged.';
         s.msgT = 1.2; SFX.deny();
       }
     }
@@ -279,7 +281,12 @@ GAMES.insertion = {
   step(s, dt) {
     const o = s.o, heavy = o.heavy || 0;
     s.t += dt;
-    const on = K.space || K.up;
+    let on = K.space || K.up;
+    if (o.assist) {
+      if (s.v <= s.target + s.band * 0.4) on = false;          // Beginner: auto-cutoff in the green
+      else if (!s.burns && s.t > 5) on = true;                 // and it starts the burn if you wait
+      else if (s.burning && s.v > s.target + s.band * 0.4) on = true;   // keeps burning once started
+    }
     if (on) {
       if (!s.burning) { s.burning = true; s.burns++; s.ramp = 0; }
       s.ramp += dt;
@@ -377,13 +384,15 @@ GAMES.landing = {
     s.t += dt;
     // Beginner: the landing computer brakes for you if you are about to hit too hard.
     const altNow = s.y - groundAt(s.ground, s.x);
-    s.auto = !!o.assist && altNow < 6 + s.vy * s.vy / 2 && -s.vy > s.vyLim * 0.8;   // has its own small reserve, so it works with an empty tank
+    const offPad = Math.abs(s.padX - s.x) > s.padW / 2 - 3;
+    s.auto = !!o.assist && ((altNow < 6 + s.vy * s.vy / 2 && -s.vy > s.vyLim * 0.8) || (offPad && altNow < 28 && s.vy < -0.4));   // auto-brake, and hover until over the pad; its own reserve, so it works with an empty tank
     s.thrust = (K.up && s.fuel > 0) || s.auto; s.side = s.fuel > 0 ? (K.right ? 1 : 0) - (K.left ? 1 : 0) : 0;
     if (s.thrust) s.fuel -= dt;
     if (s.side) s.fuel -= dt * 0.3;
     s.fuel = Math.max(0, s.fuel);
     s.vx += s.side * sideA * dt;
-    if (s.stab) s.vx *= Math.max(0, 1 - s.stab * (altNow < 20 ? 3 : 1) * (s.side ? 0.4 : 1) * dt);   // steadier near the ground
+    if (o.assist && !s.side) { const want = clamp((s.padX - s.x) * 0.35, -7, 7); s.vx += (want - s.vx) * Math.min(1, dt * 2); }   // Beginner: flies itself toward the pad
+    else if (s.stab) s.vx *= Math.max(0, 1 - s.stab * (altNow < 20 ? 3 : 1) * (s.side ? 0.4 : 1) * dt);   // steadier near the ground
     s.vy += (-s.g + (s.thrust ? thrustA : 0)) * dt;
     s.x += s.vx * dt; s.y += s.vy * dt;
     if (s.x < 4) { s.x = 4; s.vx = Math.abs(s.vx) * .3; } if (s.x > 196) { s.x = 196; s.vx = -Math.abs(s.vx) * .3; }
@@ -393,6 +402,7 @@ GAMES.landing = {
       const onPad = Math.abs(s.x - s.padX) <= s.padW / 2;
       const slope = Math.abs(groundAt(s.ground, s.x + 4) - groundAt(s.ground, s.x - 4)) / 8;
       let outcome = 'crash', why = '';
+      if (o.assist && (-s.vy > s.vyLim || Math.abs(s.vx) > s.vxLim)) { s.vy = -s.vyLim * 0.9; s.vx = 0; }   // Beginner: the legs soak it up
       if (-s.vy > s.vyLim) why = 'fast';
       else if (Math.abs(s.vx) > s.vxLim) why = 'side';
       else if (!onPad && slope >= 0.35 && (o.tol || 1) < 1) why = 'slope';
@@ -449,7 +459,7 @@ GAMES.tag = {
   keys: [{ k: 'left', l: '◀' }, { k: 'up', l: '▲ Thrust' }, { k: 'right', l: '▶' }],
   init(o, w, h) {
     const tol = o.tol || 1, rough = o.rough == null ? 0.5 : o.rough;
-    const boulders = Array.from({ length: Math.round(2 + rough * 4) }, () => ({ x: rnd(15, 185), r: rnd(3, 4 + rough * 3) }));
+    const boulders = o.assist ? [] : Array.from({ length: Math.round(2 + rough * 4) }, () => ({ x: rnd(15, 185), r: rnd(3, 4 + rough * 3) }));
     return { o, x: 100 + rnd(-40, 40), y: 40, vx: rnd(-1, 1), vy: -1.5, g: Math.max(0.6, o.gravity || 0.25), fuel: 14 + 5 * (tol - 1), fuel0: 14 + 5 * (tol - 1),
       ground: makeTerrain(200, 0.25), boulders, stars: makeStars(60, w, h), phase: 'descend', touchT: 0, escT: 0,
       vyLim: 1.6 * Math.sqrt(tol), vxLim: 1.2 * Math.sqrt(tol), t: 0, thrust: false, side: 0 };
@@ -457,8 +467,10 @@ GAMES.tag = {
   step(s, dt) {
     const o = s.o, sideA = 3 * (o.agility || 1), thrustA = 2.6;
     s.t += dt;
-    s.thrust = K.up && s.fuel > 0; s.side = s.fuel > 0 && s.phase !== 'touch' ? (K.right ? 1 : 0) - (K.left ? 1 : 0) : 0;
-    if (s.thrust) s.fuel -= dt; if (s.side) s.fuel -= dt * 0.3; s.fuel = Math.max(0, s.fuel);
+    const altT = s.y - groundAt(s.ground, s.x);
+    const autoT = o.assist && (s.phase === 'escape' || (s.phase === 'descend' && altT < 10 && -s.vy > s.vyLim));   // Beginner: brakes and backs away for you
+    s.thrust = (K.up && s.fuel > 0) || autoT; s.side = s.fuel > 0 && s.phase !== 'touch' ? (K.right ? 1 : 0) - (K.left ? 1 : 0) : 0;
+    if (s.thrust && !autoT) s.fuel -= dt; if (s.side) s.fuel -= dt * 0.3; s.fuel = Math.max(0, s.fuel);
     const gy = groundAt(s.ground, s.x);
     if (s.phase === 'touch') {
       s.touchT += dt; s.vx *= 0.9;
@@ -477,10 +489,11 @@ GAMES.tag = {
     }
     if (s.y <= gy + 1) {
       const rock = s.boulders.find(b => Math.abs(b.x - s.x) < b.r + 3);
-      if (rock || -s.vy > s.vyLim * 1.5 || Math.abs(s.vx) > s.vxLim * 1.5) return this.finish({ ok: false, why: rock ? 'boulder' : 'hard' });
+      if (!o.assist && (rock || -s.vy > s.vyLim * 1.5 || Math.abs(s.vx) > s.vxLim * 1.5)) return this.finish({ ok: false, why: rock ? 'boulder' : 'hard' });
       s.gentle = clamp(1 - (-s.vy) / (s.vyLim * 1.5), 0, 1);
       s.phase = 'touch'; s.touchT = 0; s.y = gy + 1; s.vy = 0; SFX.place();
     }
+    if (o.assist && s.y > 60) s.vy = Math.min(s.vy, -0.5);   // Beginner: can't drift away
     if (s.y > 95 || s.t > 75) return this.finish({ ok: false, why: 'drift' });
     return null;
   },
@@ -532,6 +545,7 @@ GAMES.reentry = {
       if (off > s.bw) s.skip += dt * (off - s.bw) * 1.1 / (tol * tol);
       else if (off < -s.bw) s.heat += dt * (-off - s.bw) * 1.2 / (tol * tol);
       else { const cool = 0.1 + 0.3 * Math.max(0, tol - 1); s.inBand += dt; s.heat = Math.max(0, s.heat - dt * cool); s.skip = Math.max(0, s.skip - dt * cool); }
+      if (o.assist) { s.heat = Math.min(s.heat, 0.9); s.skip = Math.min(s.skip, 0.9); }   // Beginner: the heat shield always holds
       if (s.heat >= 1) return this.finish({ ok: false, why: 'burn', acc: s.inBand / s.t });
       if (s.skip >= 1) return this.finish({ ok: false, why: 'skip', acc: s.inBand / s.t });
       if (s.t >= s.dur) { s.phase = 'chute'; s.acc = s.inBand / s.t; K.spaceHit = false; SFX.stage(); }
@@ -638,8 +652,12 @@ function designEffects(o, kind) {
   if (kind === 'dodge' && o.span > 1.6) out.push('🔆 Big solar wings: a bigger target');
   if (kind === 'dodge') out.push(o.shield ? `🛡️ Debris shield: soaks up ${plural(o.shield, 'hit')}` : '⚠️ No debris shield: every hit breaks a part');
   if (kind === 'launch' && o.assist) out.push('🤖 Auto-throttle through Max-Q (Beginner)');
-  if (kind === 'landing' && o.assist) out.push('🤖 Auto-brake and a slide stabiliser (Beginner)');
-  if (kind === 'reentry' && o.assist) out.push('🤖 Self-steadying capsule and a backup parachute timer (Beginner)');
+  if (kind === 'launch' && o.assist) out.push('🤖 Autopilot holds the line if you let go (Beginner)');
+  if (kind === 'dodge' && o.assist) out.push('🛡️ Practice shield: bumps never break parts (Beginner)');
+  if (kind === 'insertion' && o.assist) out.push('🤖 The engine cuts off in the green by itself (Beginner)');
+  if (kind === 'tag' && o.assist) out.push('🤖 No boulders, and the spacecraft backs away by itself (Beginner)');
+  if (kind === 'landing' && o.assist) out.push('🤖 Auto-brake, soft legs, and the lander drifts toward the pad (Beginner)');
+  if (kind === 'reentry' && o.assist) out.push('🤖 Self-steadying capsule, a heat shield that always holds, and a backup parachute timer (Beginner)');
   if (o.tol > 1.2) out.push('🟢 Wide safe zones on this difficulty');
   if (o.tol < 1) out.push('🔴 Tight safe zones on this difficulty');
   if (kind === 'landing' || kind === 'tag') out.push(`🌍 Gravity: ${o.gravity} m/s²`);
@@ -717,8 +735,8 @@ const SCREENS_GAME = {
 const SCAN_MULT = [0.85, 1, 1.15, 1.3];
 let SCAN = { on: false };
 function runScan(opts, done) {
-  const zone = clamp(0.16 * (opts.tol || 1) * (opts.precise ? 1.35 : 1), 0.08, 0.34);
-  SCAN = { on: true, done, zone, sweep: 0, hits: 0, p: 0, dir: 1, travel: 0, start: rnd(0.08, 0.92 - zone), flash: 0, flashOk: false, finished: false, raf: 0, last: performance.now() };
+  const zone = clamp(0.16 * (opts.tol || 1) * (opts.precise ? 1.35 : 1) * (opts.easy ? 1.6 : 1), 0.08, opts.easy ? 0.5 : 0.34);
+  SCAN = { on: true, done, zone, easy: !!opts.easy, sweep: 0, hits: 0, p: 0, dir: 1, travel: 0, start: rnd(0.08, 0.92 - zone), flash: 0, flashOk: false, finished: false, raf: 0, last: performance.now() };
   showModal(`<div class="scan"><h3>🔭 Science scan</h3>
     <p class="small">Press <b>SCAN</b> (or Space) when the line is in the green zone. Three sweeps. Better aim, better data.${opts.precise ? ' Your precision pointing widens the zone.' : ''}</p>
     <canvas id="scanCv" width="600" height="110" aria-label="Scan bar"></canvas>
@@ -729,7 +747,7 @@ function runScan(opts, done) {
     if (!SCAN.on) return;
     const dt = Math.min(0.05, (now - SCAN.last) / 1000); SCAN.last = now;
     if (!SCAN.finished) {
-      const v = 0.85 * dt;
+      const v = (SCAN.easy ? 0.55 : 0.85) * dt;
       SCAN.p += SCAN.dir * v; SCAN.travel += v;
       if (SCAN.p >= 1) { SCAN.p = 1; SCAN.dir = -1; } if (SCAN.p <= 0) { SCAN.p = 0; SCAN.dir = 1; }
       if (SCAN.travel > 2.2) scanResolve(false);   // two full passes with no press: a miss
