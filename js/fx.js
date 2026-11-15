@@ -171,8 +171,8 @@ const FACES = {
 
 // ---------- Ollie's quips ----------
 const QUIPS = {
-  good: ['Textbook!', 'Smooth as a fresh battery.', 'I barely had to cover my eyes.', 'That is going in the training videos.', 'Mission Control is doing a little dance.'],
-  ok: ['Not pretty, but it counts.', 'We will call that "character building".', 'Close enough for space.', 'Nobody saw that wobble. Probably.'],
+  good: ['Textbook!', 'Smooth as a fresh battery.', 'I barely had to cover my eyes.', 'That is going in the training videos.', 'Mission Control is doing a little dance.', 'Ollie is wearing the lucky poppy pants today. It shows.'],
+  ok: ['Not pretty, but it counts.', 'We will call that "character building".', 'Close enough for space.', 'Still counts. Team Poppy Pants does not judge.', 'Nobody saw that wobble. Probably.'],
   bad: ['Ouch. Every expert has a crash or two.', 'Well, now we know what not to do.', 'The spacecraft forgives you. Mostly.', 'Let us never speak of this again.']
 };
 function quip(kind) { const a = QUIPS[kind] || QUIPS.ok; return a[Math.floor(Math.random() * a.length)]; }
