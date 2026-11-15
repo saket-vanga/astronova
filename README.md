@@ -1,20 +1,120 @@
-# AstroNova
+<p align="center">
+  <a href="https://saket-vanga.github.io/astronova/"><img src="docs/screenshots/banner.jpg" alt="AstroNova: a space mission design game" width="100%"></a>
+</p>
 
-**Episode 1 · Last Signal from Ceruvia**: a space mission design game by **Team Hubble Huddle** for the 2026 NASA Space Apps Challenge, "Space Mission Design Game".
+<h3 align="center">Design a spacecraft. Fly the mission. Answer the signal.</h3>
 
-**▶ Play it now: <https://saket-vanga.github.io/astronova/>**
+<p align="center">
+  A space mission design game by <b>Team Hubble Huddle</b> for the 2026 NASA Space Apps Challenge, "Space Mission Design Game".
+</p>
 
-It works in any modern browser on a phone, tablet or computer, with no install and no account. Online co-op is included.
+<p align="center">
+  <a href="https://saket-vanga.github.io/astronova/"><img src="https://img.shields.io/badge/%E2%96%B6%20PLAY%20NOW-in%20your%20browser-ffb84d?style=for-the-badge&labelColor=0b0f2e" alt="Play now"></a>
+</p>
 
-> A faint radio signal is coming from Ceruvia, an icy moon 1.4 billion km away, and it is fading. Nobody will fund a trip that far until your team proves it can fly. Over five missions you pick a science goal, build a spacecraft from parts with real trade-offs, pass a launch review, fly each part of the trip yourself, do the science, and read a report on what worked.
+<p align="center">
+  <img src="https://img.shields.io/badge/NASA%20Space%20Apps-2026-7af5dc?style=flat-square&labelColor=0b0f2e" alt="NASA Space Apps 2026">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-b69cff?style=flat-square&labelColor=0b0f2e" alt="Apache-2.0 license">
+  <img src="https://img.shields.io/badge/build%20step-none-4cc9f0?style=flat-square&labelColor=0b0f2e" alt="No build step">
+  <img src="https://img.shields.io/badge/vanilla-HTML%20%C2%B7%20CSS%20%C2%B7%20JS-ffe08a?style=flat-square&labelColor=0b0f2e" alt="Vanilla HTML, CSS and JavaScript">
+  <img src="https://img.shields.io/badge/co--op-2%E2%80%934%20players-ff8fb8?style=flat-square&labelColor=0b0f2e" alt="Co-op for 2 to 4 players">
+  <img src="https://img.shields.io/badge/works%20on-phone%20%C2%B7%20tablet%20%C2%B7%20desktop-06d6a0?style=flat-square&labelColor=0b0f2e" alt="Works on phone, tablet and desktop">
+</p>
 
-There is no single right answer. A heavy, power-hungry design can work if you pay for a bigger rocket. A cheap one can work if you take a slower route. The game shows you the consequences and lets you try again.
+<p align="center">
+  <a href="#-screenshots">Screenshots</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-a-mission-works">How to play</a> ·
+  <a href="#playing-together-co-op">Co-op</a> ·
+  <a href="#the-engineering-model">The science</a> ·
+  <a href="#for-developers">Developers</a>
+</p>
+
+---
+
+> **A faint radio signal is coming from Ceruvia, an icy moon 1.4 billion km away, and it is fading.**
+> Nobody will fund a trip that far until your team proves it can fly. Over five missions you pick a science goal, build a spacecraft from parts with real trade-offs, pass a launch review, fly each part of the trip yourself, do the science, and read a report on what worked.
+
+There is no single right answer. A heavy, power-hungry design can work if you pay for a bigger rocket. A cheap one can work if you take a slower route. The game shows you the consequences and lets you try again. It runs in any modern browser on a phone, tablet or computer, with **no install and no account**.
+
+## ✨ At a glance
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><h3>🔬 Science first</h3>Every mission starts with a question. Pick a prime goal, see who uses the data, and build only what the goal needs.</td>
+    <td width="33%" valign="top"><h3>🔧 Real trade-offs</h3>32 parts, 4 rockets and 3 spacecraft sizes. Mass, fuel, power, data, budget and time all pull against each other.</td>
+    <td width="33%" valign="top"><h3>🕹️ Fly it yourself</h3>Six arcade minigames: launch, a debris field, orbit insertion, landing, a touch-and-go sample grab and reentry.</td>
+  </tr>
+  <tr>
+    <td valign="top"><h3>🧭 Like a real team</h3>A JPL Concept Maturity phase bar, a launch review split into NASA's four segments, a trade study, a mission timeline and trajectory diagrams.</td>
+    <td valign="top"><h3>🌱 Made for beginners</h3>Ollie the coach, "Build it for me", plain-language help and autopilots. Beginner is very hard to fail, and Flight Director is a real challenge.</td>
+    <td valign="top"><h3>👥 Play together</h3>Online co-op for 2–4 players with four crew roles, a GO / NO GO launch vote and live watching while a crewmate flies.</td>
+  </tr>
+</table>
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/hangar.jpg" alt="The hangar: meters, Ollie the coach, the spacecraft and the parts shelf" width="100%">
+  <br><sub><b>The hangar.</b> Fit parts onto the spacecraft, watch six live meters, and let Ollie the coach show you the next step.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/mission-control.jpg" alt="Mission control with five missions"><br><sub><b>Mission control.</b> Five missions from Earth orbit to Ceruvia. The next one always glows.</sub></td>
+    <td width="50%"><img src="docs/screenshots/review.jpg" alt="The launch review grouped by segment"><br><sub><b>Launch review.</b> Every check, grouped into NASA's launch, space, ground and user segments.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/mission-plan.jpg" alt="Mission plan timeline and trajectory diagram"><br><sub><b>Mission plan.</b> A concept-of-operations timeline and a trajectory diagram for your chosen route.</sub></td>
+    <td><img src="docs/screenshots/hangar-plan.jpg" alt="The plan tab with rockets, orbits and ground stations"><br><sub><b>Plan tab.</b> Pick a rocket, an orbit and ground stations. Each choice changes the meters.</sub></td>
+  </tr>
+</table>
+
+### 🕹️ Fly every phase
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/game-launch.jpg" alt="Launch minigame"><br><sub><b>Launch.</b> Follow the gravity turn and ease off at Max-Q.</sub></td>
+    <td width="50%"><img src="docs/screenshots/game-cruise.jpg" alt="Cruise minigame"><br><sub><b>Cruise.</b> Dodge debris and grab star fixes.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/game-landing.jpg" alt="Landing minigame"><br><sub><b>Landing.</b> Touch down gently on the flashing pad.</sub></td>
+    <td><img src="docs/screenshots/game-reentry.jpg" alt="Reentry minigame"><br><sub><b>Reentry.</b> Hold the corridor, then pop the parachute.</sub></td>
+  </tr>
+</table>
+
+### 🔭 Do the science
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/science.jpg" alt="Science operations on Ceruvia"><br><sub><b>Science operations.</b> Choose where to point your instruments. Glowing spots still hide discoveries.</sub></td>
+    <td width="50%"><img src="docs/screenshots/power-emergency.jpg" alt="The power emergency"><br><sub><b>Power emergency.</b> A dust storm cuts the sunlight. Decide what to switch off.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/report.jpg" alt="The mission report"><br><sub><b>Mission report.</b> Stars, score, crew reactions, hints for what you missed, and real missions like yours.</sub></td>
+    <td><img src="docs/screenshots/coop-lobby.jpg" alt="The co-op lobby"><br><sub><b>Co-op lobby.</b> Share a room code. Everyone gets a crew role.</sub></td>
+  </tr>
+</table>
+
+### 📱 On your phone
+
+<p align="center">
+  <img src="docs/screenshots/phone-title.jpg" alt="AstroNova title screen on a phone" width="30%">
+  &nbsp;
+  <img src="docs/screenshots/phone-hangar.jpg" alt="The hangar on a phone" width="30%">
+  &nbsp;
+  <img src="docs/screenshots/phone-landing.jpg" alt="The landing minigame on a phone" width="30%">
+</p>
+<p align="center"><sub>Every screen fits a 375 px phone. Touch buttons appear under each minigame.</sub></p>
+
+<sub>All screenshots are captured from the real game. The game itself draws everything in code: it uses no image files.</sub>
 
 ---
 
 ## Contents
 
 **For players**
+- [Screenshots](#-screenshots)
 - [Quick start](#quick-start)
 - [How a mission works](#how-a-mission-works)
 - [Controls](#controls)
@@ -400,12 +500,14 @@ astronova/
 │   ├── firebase-config.js  The public Firebase web config
 │   ├── net.js              Online co-op: Firebase and local transports, rooms, roles, the vote, live watching
 │   └── fun.js              Badges, hats, discovery cards, music switching, spacecraft moods, versus links
+├── docs/screenshots/       Screenshots of the game used in this README
+├── tools/screenshots/      The script that captures those screenshots with headless Chrome
 ├── LICENSE                 Apache-2.0
 ├── README.md               This file
 └── *.md                    The original design brief and build notes (see below)
 ```
 
-There are **no image or audio files**. Every visual is CSS, SVG, canvas or a system emoji, and every sound is synthesized in code.
+The game uses **no image or audio files**. Every visual is CSS, SVG, canvas or a system emoji, and every sound is synthesized in code. The only images in the repository are the screenshots in `docs/screenshots/`, which are captures of the game for this README.
 
 The other Markdown files are the design kit the game was built from:
 
@@ -503,6 +605,17 @@ Two things can fool you while testing:
 - **Background tabs:** browsers pause `requestAnimationFrame` in background tabs, so minigames freeze there.
 - **Old files:** after an edit, do a hard refresh so the browser doesn't keep using its stored copy.
 
+### Updating the screenshots
+
+The README screenshots are captured from the real game by a small script that drives headless Google Chrome. It needs Node 22 or later and Chrome installed.
+
+```bash
+python3 -m http.server 8767          # in one terminal
+node tools/screenshots/capture.mjs   # in another
+```
+
+Each step in `tools/screenshots/shots.mjs` sets up one screen through the game's own functions and saves a 2× PNG to `tools/screenshots/out/`, which is git-ignored. Compress the ones you want (for example to 1600 px wide JPEGs) and copy them into `docs/screenshots/`.
+
 ## Deploying
 
 The live game is served by **GitHub Pages** straight from the `main` branch at the repository root, with no build step. Pushing to `main` updates <https://saket-vanga.github.io/astronova/> within a minute or two.
@@ -571,11 +684,11 @@ We approved each build step before it started, playtested and reviewed the resul
 - the code (HTML, CSS and JavaScript)
 - the in-game text (dialogue, part descriptions, help and handbook)
 - the procedural sound effects and chiptune music, synthesized in code with the Web Audio API
-- this documentation
+- this documentation, and the script that captured the screenshots
 
 It also tuned the numbers, simulated the minigames to balance their difficulty, and tested each step in a browser.
 
-**What the AI did not make:** there are no AI-generated images, and no image or audio files at all. Every visual is drawn in CSS, SVG or canvas, or is a system emoji.
+**What the AI did not make:** there are no AI-generated images. The game has no image or audio files at all, and every visual is drawn in CSS, SVG or canvas, or is a system emoji. The screenshots in this README are captures of the running game.
 
 **Where it's disclosed:**
 - a header comment at the top of every JS and CSS file
