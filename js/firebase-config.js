@@ -7,4 +7,12 @@
    window.FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", databaseURL: "...", projectId: "...", appId: "..." };
 
    These web config values are designed to be public. The database rules are what protect the data. */
-window.FIREBASE_CONFIG = null;
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCSnykY6Erbs7_8SoWgIeHF5lGOWGQL_Zk",
+  authDomain: "last-signal-d047f.firebaseapp.com",
+  databaseURL: "https://last-signal-d047f-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "last-signal-d047f",
+  storageBucket: "last-signal-d047f.firebasestorage.app",
+  messagingSenderId: "842642519734",
+  appId: "1:842642519734:web:f6e7eb8b9103ba31809817"
+};
