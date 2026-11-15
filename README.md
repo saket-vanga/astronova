@@ -1,6 +1,6 @@
 # AstroNova
 
-**Episode 1 · Last Signal from Ceruvia**: a space mission design game by **Team Poppy Pants** for the 2026 NASA Space Apps Challenge, "Space Mission Design Game".
+**Episode 1 · Last Signal from Ceruvia**: a space mission design game by **Team Hubble Huddle** for the 2026 NASA Space Apps Challenge, "Space Mission Design Game".
 
 **▶ Play it now: <https://saket-vanga.github.io/astronova/>** (works in any modern browser, on phones too; online co-op included)
 
@@ -48,7 +48,7 @@ One star on a mission unlocks the next one, and every star adds money to later m
   - a cartoon look with planets that have faces
   - a spacecraft with googly eyes and moods
   - chiptune music
-  - 18 badges and 9 hats (everyone starts with the team's poppy hat 🌺)
+  - 18 badges and 9 hats (everyone starts with the team's telescope hat 🔭)
   - collectible discovery cards
   - versus challenge links you can send to a friend
 - **Online co-op for 2–4 players:** each player holds a role (Mission Lead, Propulsion, Science, Power & Comms). Everyone builds one spacecraft together, votes GO at the review, and takes turns flying while the others watch live.
@@ -97,7 +97,7 @@ The rules call this "Super Intelligence". Here is how we used it.
 **What the team decided:**
 - the challenge and the story idea (a fading signal from an icy moon; design, launch and explore; survive a power shortage; bring something home)
 - the design brief and the build plan
-- the name "AstroNova" and the Team Poppy Pants touches
+- the name "AstroNova", the team name "Hubble Huddle" and the team touches
 - setting up the Firebase project for online play
 
 We approved each of the 11 build steps before it started, playtested and reviewed the result, and decided what to change.
@@ -195,8 +195,8 @@ The other Markdown files (`PROMPT.md`, `GUIDE.md`, `ARCHITECTURE.md` and so on) 
 
 ## Disclaimer
 
-This game is not affiliated with or endorsed by NASA, JPL, the Canadian Space Agency or any other space agency. It is a fan-made educational game for the NASA Space Apps Challenge.
+This game is not affiliated with or endorsed by NASA, JPL, the Canadian Space Agency or any other space agency. It is a fan-made educational game for the NASA Space Apps Challenge. Our team name, Hubble Huddle, is a nod to the Hubble Space Telescope, not a link to it.
 
 ## License
 
-[Apache License 2.0](LICENSE). Copyright 2026 Team Poppy Pants.
+[Apache License 2.0](LICENSE). Copyright 2026 Team Hubble Huddle.

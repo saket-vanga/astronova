@@ -718,7 +718,7 @@ const HANDBOOK = [
     '<li>A big camera is no use if the antenna cannot send its pictures home.</li>' +
     '<li>Stuck? Press "Build it for me" in the hangar, then improve the design yourself.</li></ul>' },
   { title: 'About this game', html:
-    '<p><b>AstroNova</b> was made by Team Poppy Pants for the NASA Space Apps Challenge "Space Mission Design Game". The engineering uses real relationships with simplified numbers. Rocket and part names are made up, and Ceruvia is fictional.</p>' +
+    '<p><b>AstroNova</b> was made by Team Hubble Huddle for the NASA Space Apps Challenge "Space Mission Design Game". The engineering uses real relationships with simplified numbers. Rocket and part names are made up, and Ceruvia is fictional.</p>' +
     '<p><b>Use of AI:</b> the code, in-game text and synthesized sound were written with the help of Claude, an AI assistant made by Anthropic, as directed and reviewed by the team. No AI-generated images are used. All art is drawn in code.</p>' +
-    '<p>This game is not affiliated with or endorsed by NASA or any other space agency.</p>' }
+    '<p>This game is not affiliated with or endorsed by NASA or any other space agency. Our team name, Hubble Huddle, is a nod to the telescope, not a link to it.</p>' }
 ];

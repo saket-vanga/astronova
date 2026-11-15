@@ -66,7 +66,7 @@ const BADGES = [
   { id: 'director', icon: '🎖️', name: 'Flight Director', desc: 'Earn a star on Flight Director difficulty.' }
 ];
 const HATS = [
-  { at: 0, icon: '🌺', name: 'Poppy (the team hat)' }, { at: 1, icon: '🧢', name: 'Cap' }, { at: 2, icon: '🎩', name: 'Top hat' }, { at: 4, icon: '👒', name: 'Sun hat' }, { at: 6, icon: '🎓', name: 'Graduate' },
+  { at: 0, icon: '🔭', name: 'Huddle telescope (the team hat)' }, { at: 1, icon: '🧢', name: 'Cap' }, { at: 2, icon: '🎩', name: 'Top hat' }, { at: 4, icon: '👒', name: 'Sun hat' }, { at: 6, icon: '🎓', name: 'Graduate' },
   { at: 9, icon: '⛑️', name: 'Rescue helmet' }, { at: 12, icon: '🤠', name: 'Space cowboy' }, { at: 15, icon: '🎉', name: 'Party' }, { at: 18, icon: '👑', name: 'Crown' }
 ];
 let funBadges = funGet('ceruvia-badges', []);
@@ -189,8 +189,8 @@ function shipMood() {
   const blocks = items.filter(i => i.level === 'block').length, warns = items.filter(i => i.level === 'warn').length;
   return blocks >= 3 ? 'panic' : blocks || warns >= 3 ? 'worried' : 'happy';
 }
-// New players start in the team's poppy hat; choosing "no hat" saves null.
-function myHat() { const h = funGet('ceruvia-hat', '🌺'), un = hatsUnlocked(); return un.find(x => x.icon === h) || null; }
+// New players start with the team's telescope hat; choosing "no hat" saves null.
+function myHat() { const h = funGet('ceruvia-hat', '🔭'), un = hatsUnlocked(); return un.find(x => x.icon === h) || null; }
 const fun_shipHtml = shipHtml;
 shipHtml = function (...a) {
   const h = fun_shipHtml.apply(this, a), hat = myHat();

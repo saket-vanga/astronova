@@ -504,7 +504,7 @@ h3, h4 { font-family: var(--round); font-weight: 800; }
   .mphases li.cur { flex-grow: 2.2; }
 }
 
-/* ---------- Team Poppy Pants touches ---------- */
+/* ---------- Team Hubble Huddle touches ---------- */
 .title-screen .episode { font-family: var(--display); color: var(--pink); letter-spacing: .04em; margin: -.1em 0 .4em; text-shadow: 0 2px 0 var(--ink); }
 .title-screen .credit { margin-top: 18px; }
 .credit-roll { font-family: var(--round); font-size: 1.05rem; background: rgba(255, 107, 157, .12); border: 1px dashed var(--pink); border-radius: 12px; padding: 10px 12px; }
