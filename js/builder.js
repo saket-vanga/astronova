@@ -489,7 +489,7 @@ function drawRing(ctx) {
   ctx.lineWidth = 5; ctx.strokeStyle = PATCH_BG;
   ctx.beginPath(); ctx.arc(PATCH_R, PATCH_R, PATCH_R - 3, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath(); ctx.arc(PATCH_R, PATCH_R, PATCH_IN, 0, Math.PI * 2); ctx.stroke();
-  const text = (S.shipName || 'Poppy Pants').toUpperCase();
+  const text = (S.shipName || 'AstroNova').toUpperCase();
   writeArc(ctx, text, -Math.PI / 2, (PATCH_R + PATCH_IN) / 2, false);
   writeArc(ctx, '★ ★ ★', Math.PI / 2, (PATCH_R + PATCH_IN) / 2, true);
 }

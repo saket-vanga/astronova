@@ -126,7 +126,7 @@ function renderTopbar() {
   if (!tb) return;
   const flying = FLIGHT_SCREENS.includes(S.screen);
   const showMission = S.mission && !['title', 'setup', 'map', 'finale'].includes(S.screen);
-  tb.innerHTML = `<button class="brand" ${flying ? 'disabled' : 'data-act="home"'} aria-label="Title screen">🌺 <span>Poppy Pants</span></button>
+  tb.innerHTML = `<button class="brand" ${flying ? 'disabled' : 'data-act="home"'} aria-label="Title screen">🚀 <span>AstroNova</span></button>
     ${showMission ? `<span class="tb-mission small">${FACES.planet[S.mission.planet]} M${S.mission.num} · ${esc(S.mission.name)}</span>` : ''}
     <span class="grow"></span>
     ${!flying && showMission ? '<button class="btn small ghost" data-act="toMap" aria-label="Mission control"><span class="lbl">Mission control</span><span class="ico" aria-hidden="true">🗺️</span></button>' : ''}
@@ -183,7 +183,7 @@ SCREENS.title = {
       <div class="hero" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
         ${planetSvg('ceruvia', 'wow', 'hero-planet')}<span class="orbit"><span class="sat">🛰️</span></span></div>
       <div class="eyebrow">A space mission design game</div>
-      <h1 class="game-title">Poppy Pants <small>in Space</small></h1>
+      <h1 class="game-title">Astro<span class="nova">Nova</span></h1>
       <div class="episode">Episode 1 · Last Signal from Ceruvia</div>
       <p class="lede">A faint radio signal is coming from an icy moon, and it is fading. Fly five missions to prove your team can reach it. Pick a science goal, build a spacecraft, fly it, and find out what is calling.</p>
       <div class="stack">

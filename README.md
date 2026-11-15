@@ -1,4 +1,4 @@
-# Poppy Pants in Space
+# AstroNova
 
 **Episode 1 · Last Signal from Ceruvia**: a space mission design game by **Team Poppy Pants** for the 2026 NASA Space Apps Challenge, "Space Mission Design Game".
 
@@ -97,7 +97,7 @@ The rules call this "Super Intelligence". Here is how we used it.
 **What the team decided:**
 - the challenge and the story idea (a fading signal from an icy moon; design, launch and explore; survive a power shortage; bring something home)
 - the design brief and the build plan
-- the name "Poppy Pants in Space" and the team touches
+- the name "AstroNova" and the Team Poppy Pants touches
 - setting up the Firebase project for online play
 
 We approved each of the 11 build steps before it started, playtested and reviewed the result, and decided what to change.

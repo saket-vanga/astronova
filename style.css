@@ -542,3 +542,6 @@ h3.mt { margin-top: 16px; }
 .game-card .job { background: rgba(6, 214, 160, .14); border: 3px solid var(--good); border-radius: 14px; padding: 10px 14px; margin: 10px 0; text-align: left; }
 .game-card .job .eyebrow { display: block; } .game-card .job b { font-family: var(--round); font-size: 1.2rem; }
 .gsteps { text-align: left; margin: 8px 0; padding-left: 1.4rem; } .gsteps li { margin: 4px 0; }
+
+/* ---------- AstroNova title ---------- */
+.game-title .nova { color: var(--accent2); }
