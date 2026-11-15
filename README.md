@@ -501,7 +501,6 @@ astronova/
 │   ├── net.js              Online co-op: Firebase and local transports, rooms, roles, the vote, live watching
 │   └── fun.js              Badges, hats, discovery cards, music switching, spacecraft moods, versus links
 ├── docs/screenshots/       Screenshots of the game used in this README
-├── tools/screenshots/      The script that captures those screenshots with headless Chrome
 ├── LICENSE                 Apache-2.0
 ├── README.md               This file
 └── *.md                    The original design brief and build notes (see below)
@@ -605,17 +604,6 @@ Two things can fool you while testing:
 - **Background tabs:** browsers pause `requestAnimationFrame` in background tabs, so minigames freeze there.
 - **Old files:** after an edit, do a hard refresh so the browser doesn't keep using its stored copy.
 
-### Updating the screenshots
-
-The README screenshots are captured from the real game by a small script that drives headless Google Chrome. It needs Node 22 or later and Chrome installed.
-
-```bash
-python3 -m http.server 8767          # in one terminal
-node tools/screenshots/capture.mjs   # in another
-```
-
-Each step in `tools/screenshots/shots.mjs` sets up one screen through the game's own functions and saves a 2× PNG to `tools/screenshots/out/`, which is git-ignored. Compress the ones you want (for example to 1600 px wide JPEGs) and copy them into `docs/screenshots/`.
-
 ## Deploying
 
 The live game is served by **GitHub Pages** straight from the `main` branch at the repository root, with no build step. Pushing to `main` updates <https://saket-vanga.github.io/astronova/> within a minute or two.
@@ -684,7 +672,7 @@ We approved each build step before it started, playtested and reviewed the resul
 - the code (HTML, CSS and JavaScript)
 - the in-game text (dialogue, part descriptions, help and handbook)
 - the procedural sound effects and chiptune music, synthesized in code with the Web Audio API
-- this documentation, and the script that captured the screenshots
+- this documentation
 
 It also tuned the numbers, simulated the minigames to balance their difficulty, and tested each step in a browser.
 
