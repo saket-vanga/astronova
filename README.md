@@ -2,6 +2,8 @@
 
 **Episode 1 · Last Signal from Ceruvia**: a space mission design game by **Team Poppy Pants** for the 2026 NASA Space Apps Challenge, "Space Mission Design Game".
 
+**▶ Play it now: <https://saket-vanga.github.io/poppy-pants-in-space/>** (works in any modern browser, on phones too; online co-op included)
+
 A faint radio signal is coming from Ceruvia, an icy moon 1.4 billion km away, and it is fading. Nobody will fund a trip that far until your team proves it can fly. Over five missions you pick a science goal, build a spacecraft from parts with real trade-offs, pass a launch review, fly each part of the trip yourself, do the science, and read a report on what worked.
 
 There is no single right answer. A heavy, power-hungry design can work if you pay for a bigger rocket. A cheap one can work if you choose a slower route. The game shows you the consequences and lets you try again.
